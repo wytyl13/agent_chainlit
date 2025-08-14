@@ -1,0 +1,8 @@
+# agent
+git+https://github.com/wytyl13/agent.git
+chainlit
+fastapi 
+uvicorn
+azure-storage-file-datalake
+azure-storage-blob
+azure-identity

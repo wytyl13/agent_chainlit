@@ -1,0 +1,12 @@
+config/
+.env
+chainlit.md
+cert
+logs
+models
+upload_dir
+retrieval_data
+retrieval_storage
+__pycache__/
+*.pyc
+*.pyo
