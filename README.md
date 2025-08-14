@@ -1,6 +1,6 @@
-# Agent 核心库
+# AgentChainlit
 
-🚀 基于Docker的智能Agent核心库，提供完整的后端API服务和前后端分离架构。
+🚀 基于Docker的智能AgentChainlit问答系统。
 
 ## 📋 目录
 
@@ -67,7 +67,7 @@ docker run -d \
 ```bash
 # 运行PostgreSQL初始化脚本（先查看是否有postgres这个镜像，如果有直接运行脚本，没有则需要拉取镜像）
 docker pull postgres:latest
-sudo bash postgres_docker_contanier_init.sh postgres_dev 5431
+sudo bash postgres_docker_contanier_init.sh postgres_dev 5432
 ```
 
 #### 4. 配置网络连接
@@ -75,7 +75,7 @@ sudo bash postgres_docker_contanier_init.sh postgres_dev 5431
 ```bash
 # 将容器连接到网络
 docker network connect app-network agent
-docker network connect app-network postgres
+docker network connect app-network postgres_dev
 ```
 
 #### 5. 环境配置
@@ -113,15 +113,12 @@ cd agent_chainlit
 conda create --name agent_chainlit python=3.10
 conda activate agent_chainlit
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-agent init
+agent init # 会在当前项目下创建需要配置的环境变量文件.env和config配置文件，按照后续的配置说明进行配置
 
 # 在.env文件中添加如下环境变量
-CHAINLIT_AUTH_SECRET="8vw,_SphkplSkRn_HjN9tnKaQ%5,s7_N%XSWdl22UrBnI7/e7_0o%S1a~E*%n8lW"
-API_PORT=8890
-CHAINLIT_PORT=5002
-CONDA_ENVIRONMENT="agent_chainlit"
-CONDA_ENV_PATH="/work/soft/anaconda3"
-API_PREFIX=
+
+
+
 # 启动服务
 bash api.sh       # 启动API服务
 bash chainlit.sh  # 启动Chainlit服务
@@ -157,7 +154,7 @@ bash chainlit.sh  # 启动Chainlit服务
 ## 📁 项目结构
 
 ```
-agent_/
+agent_chainlit/
 ├── agent/                 # Agent核心库
 ├── api/                   # API服务层
 ├── logs/                  # 日志文件
@@ -184,22 +181,25 @@ agent_/
 3、新增cert文件夹存储对应域名的https秘钥验证
 4、调用api_server.sh脚本、chainlit.sh脚本（自动下载依赖的models，存储到models文件中）
 ```bash
+
 # .env文件配置（修改.env_case文件名称为.env并修改对应配置信息）
-CHAINLIT_AUTH_SECRET= # chainlit秘钥
-API_PORT= # API端口
-CHAINLIT_PORT=5005 # chainlit端口
-CONDA_ENVIRONMENT=agent # conda虚拟环境名称
-CONDA_ENV_PATH=/work/soft/anaconda # conda虚拟环境安装路径
-API_PREFIX="https://ai.shunxikj.com:${API_PORT}" # API请求前缀
+CHAINLIT_AUTH_SECRET="8vw,_SphkplSkRn_HjN9tnKaQ%5,s7_N%XSWdl22UrBnI7/e7_0o%S1a~E*%n8lW" # chainlit秘钥
+API_PORT=8890
+CHAINLIT_PORT=5002 # chainlit端口
+CONDA_ENVIRONMENT="agent_chainlit" # conda虚拟环境名称
+CONDA_ENV_PATH="/work/soft/anaconda3" # conda虚拟环境安装路径
+API_PREFIX="https://ai.shunxikj.com:${API_PORT}" API请求前缀
+
 
 # postgresql_config.yaml数据库配置（修改agent/config/yaml/postgresql_config_case.yaml文件名称为postgresql_config.yaml并修改对应配置信息）
 host: postgres_20250811
-port: 5433
+port: 5432
 username: 
 password: 
 database: postgres
 table: sx_device_wavve_vital_sign_log
 database_type: postgres
+
 
 # /work/ai/agent_/agent/config/yaml/ollama_config_qwen.yaml文件配置
 api_type: "ollama"  # 模型服务类型
@@ -219,7 +219,6 @@ cx: # google search config
 key: # google search  config
 snippet_flag: # 标志符
 query_num: # 检索条目数
-
 ```
 
 
@@ -260,7 +259,6 @@ provider = SQLProvider()
 # 支持布尔值deleted字段
 provider.create(table_name, data={'deleted': False})
 ```
-
 
 ## 🤝 贡献
 
