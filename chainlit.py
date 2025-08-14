@@ -7,7 +7,7 @@ import hashlib
 import sys
 from io import BytesIO
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 import aiohttp
 import requests
 
@@ -40,13 +40,20 @@ from agent.tool.water_machine_api import WaterMachineApi
 from agent.config.sql_config import SqlConfig
 
 
-load_dotenv(str(ROOT_DIRECTORY / ".env"))
+environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
+print(environment)
 API_PREFIX = os.getenv("API_PREFIX")
 
-QWEN_OLLAMA_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml")
-SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
-DEFAULT_RETRIEVAL_DATA_PATH = str(ROOT_DIRECTORY / "retrieval_data")
-DEFAULT_RETRIEVAL_STORAGE_PATH = str(ROOT_DIRECTORY / "retrieval_storage")
+SEARCH_CONFIG_PATH = environment["SEARCH_CONFIG_PATH"] if "SEARCH_CONFIG_PATH" in environment else None
+QWEN_OLLAMA_CONFIG_PATH = environment["LLM_CONFIG_PATH"] if "LLM_CONFIG_PATH" in environment else None
+SQL_CONFIG_PATH = environment["SQL_CONFIG_PATH"] if "SQL_CONFIG_PATH" in environment else None
+DEFAULT_RETRIEVAL_DATA_PATH = environment["RETRIEVAL_DATA_PATH"] if "RETRIEVAL_DATA_PATH" in environment else None
+DEFAULT_RETRIEVAL_STORAGE_PATH = environment["RETRIEVAL_STORAGE_PATH"] if "RETRIEVAL_STORAGE_PATH" in environment else None
+
+QWEN_OLLAMA_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml") if QWEN_OLLAMA_CONFIG_PATH is None else QWEN_OLLAMA_CONFIG_PATH
+SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml") if SQL_CONFIG_PATH is None else SQL_CONFIG_PATH
+DEFAULT_RETRIEVAL_DATA_PATH = str(ROOT_DIRECTORY / "retrieval_data") if DEFAULT_RETRIEVAL_DATA_PATH is None else DEFAULT_RETRIEVAL_DATA_PATH
+DEFAULT_RETRIEVAL_STORAGE_PATH = str(ROOT_DIRECTORY / "retrieval_storage") if DEFAULT_RETRIEVAL_DATA_PATH is None else DEFAULT_RETRIEVAL_DATA_PATH
 DEFAULT_EMBEDDING_MODEL = str(ROOT_DIRECTORY / "models" / "embedding" / "AI-ModelScope" / "bge-large-zh-v1.5")
 
 

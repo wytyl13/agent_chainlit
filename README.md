@@ -183,12 +183,25 @@ agent_chainlit/
 ```bash
 
 # .env文件配置（修改.env_case文件名称为.env并修改对应配置信息）
+
+# agent核心库相关配置
+SEARCH_CONFIG_PATH=config/yaml/search_config.yaml # google搜索配置文件路径
+LLM_CONFIG_PATH=config/yaml/ollama_config.yaml # llm配置文件路径
+SQL_CONFIG_PATH=config/yaml/sql_config.yaml # 数据库配置文件路径
+TOOL_CONFIG_PATH=config/yaml/tool_config.yaml # 工具配置文件路径
+RETRIEVAL_DATA_PATH=retrieval_data # 知识库存储路径
+RETRIEVAL_STORAGE_PATH=retrieval_storage # 向量数据库持久化存储路径
+API_PREFIX=https://ai.shunxikj.com:8890 # api前缀
+MODEL_PATH=models # 模型下载路径
+
+
 CHAINLIT_AUTH_SECRET="8vw,_SphkplSkRn_HjN9tnKaQ%5,s7_N%XSWdl22UrBnI7/e7_0o%S1a~E*%n8lW" # chainlit秘钥
 API_PORT=8890
 CHAINLIT_PORT=5002 # chainlit端口
 CONDA_ENVIRONMENT="agent_chainlit" # conda虚拟环境名称
 CONDA_ENV_PATH="/work/soft/anaconda3" # conda虚拟环境安装路径
 API_PREFIX="https://ai.shunxikj.com:${API_PORT}" API请求前缀
+
 
 
 # postgresql_config.yaml数据库配置（修改agent/config/yaml/postgresql_config_case.yaml文件名称为postgresql_config.yaml并修改对应配置信息）
