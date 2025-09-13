@@ -1,5 +1,5 @@
 # agent
-git+https://github.com/wytyl13/agent.git
+git+https://github.com/wytyl13/agent.git@weiyutao
 chainlit
 fastapi 
 uvicorn

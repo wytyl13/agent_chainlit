@@ -53,6 +53,7 @@ class UserDataServer:
         - GET /api/user_data?username=john -> 获取john用户的设备信息
         """
         condition = {}
+        print(f"condition: ---------------------- {condition}")
         if username is not None:
             condition["username"] = username
         try:

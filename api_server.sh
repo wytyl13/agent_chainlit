@@ -4,7 +4,7 @@ if [ -f ".env" ]; then
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print(os.getenv('API_PORT', '8889'))
+print(os.getenv('API_PORT', '8890'))
 ")
     CONDA_ENV_PATH=$(python -c "
 import os
@@ -16,12 +16,12 @@ print(os.getenv('CONDA_ENV_PATH', '/work/soft/anaconda3/bin/'))
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print(os.getenv('CONDA_ENVIRONMENT', 'community_agent'))
+print(os.getenv('CONDA_ENVIRONMENT', 'agent_chainlit'))
 ")
 else
-    API_PORT=8889
+    API_PORT=8890
     CONDA_ENV_PATH='/work/soft/anaconda3/bin/'
-    CONDA_ENVIRONMENT='community_agent'
+    CONDA_ENVIRONMENT='agent_chainlit'
 fi
 
 # 从命令行参数获取 PROJECT_ROOT，如果未提供，则使用现有方式
