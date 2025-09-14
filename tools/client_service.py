@@ -93,6 +93,56 @@ class ClientService:
         return markdown_table
 
 
+    
+    def convert_to_column_format(self, data_list, key_mapping=None):
+        """
+        将对象数组格式转换为列格式数据，可选择性应用字段映射
+        
+        Args:
+            data_list (list): 对象数组，每个字典代表一行数据
+            key_mapping (dict, optional): 字段名映射字典。如果不传递则保持原字段名
+        
+        Returns:
+            dict: 列格式的字典，键为字段名，值为对应的数据列表
+        
+        Examples:
+            >>> # 不使用映射
+            >>> data_list = [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}]
+            >>> result = convert_to_column_format(data_list)
+            >>> print(result)
+            {"name": ["Alice", "Bob"], "age": [25, 30]}
+            
+            >>> # 使用映射
+            >>> mapping = {"name": "姓名", "age": "年龄"}
+            >>> result = convert_to_column_format(data_list, mapping)
+            >>> print(result)
+            {"姓名": ["Alice", "Bob"], "年龄": [25, 30]}
+        """
+        if not data_list:
+            return {}
+        
+        # 从第一个对象获取所有字段名
+        fields = list(data_list[0].keys())
+        
+        # 创建结果字典
+        result = {}
+        
+        for field in fields:
+            # 提取该字段在所有对象中的值
+            values = [item.get(field, "") for item in data_list]
+            
+            # 如果提供了映射，使用映射后的字段名，否则使用原字段名
+            if key_mapping and field in key_mapping:
+                field_name = key_mapping[field]
+            else:
+                field_name = field
+            
+            # 存储到结果中
+            result[field_name] = values
+        
+        return result
+
+
     async def execute(
         self, 
         type,
@@ -180,26 +230,36 @@ class ClientService:
                     "fee": "免费",
                     "description": "教授智能手机基本操作，微信使用，网上购物等",
                     "contact": "小王 135****3456"
-                },
-                {
-                    "activity_id": "AC005",
-                    "activity_name": "社区广场舞比赛",
-                    "activity_type": "文娱活动",
-                    "organizer": "社区居委会",
-                    "date": "2024-12-13",
-                    "time": "19:00-21:00",
-                    "location": "社区广场",
-                    "participants_limit": "不限",
-                    "current_participants": "60人",
-                    "status": "可报名",
-                    "fee": "免费",
-                    "description": "各个广场舞队伍展示交流，设有奖品",
-                    "contact": "张主任 136****7890"
                 }
             ]
-
-            result = self.format_table_data_markdown(type=content, key_mapping=key_mapping, data_list=data_list)
-        
+            
+            
+            data_list = [{"姓名": "张三", "性别": "男"}, {"姓名": "张三", "性别": "男"}, {"姓名": "张三", "性别": "男"}]
+            
+            import json
+            # data_list = data = {
+            #     "活动编号": ["AC001", "AC002", "AC003", "AC004", "AC005"],
+            #     "活动名称": ["晨练太极拳", "书法交流会", "健康义诊活动", "老年手机使用培训", "社区广场舞比赛"],
+            #     "活动类型": ["健身运动", "文化艺术", "健康医疗", "技能学习", "文娱活动"],
+            #     "主办方": ["社区文体中心", "社区老年大学", "社区卫生服务中心", "社区志愿者服务队", "社区居委会"],
+            #     "活动日期": ["2024-12-09", "2024-12-10", "2024-12-11", "2024-12-12", "2024-12-13"],
+            #     "活动时间": ["07:00-08:00", "14:00-16:00", "09:00-11:30", "15:00-16:30", "19:00-21:00"],
+            #     "活动地点": ["社区广场", "活动中心二楼", "社区卫生站", "社区服务大厅", "社区广场"],
+            #     "参与人数限制": ["不限", "20人", "50人", "15人", "不限"],
+            #     "当前报名人数": ["25人", "15人", "32人", "12人", "60人"],
+            #     "活动状态": ["进行中", "可报名", "可报名", "可报名", "可报名"],
+            #     "活动费用": ["免费", "免费", "免费", "免费", "免费"],
+            #     "活动描述": ["每日晨练，强身健体，欢迎新老朋友参加", "书法爱好者交流切磋，现场指导", "免费测血压血糖，健康咨询，常见病预防知识讲座", "教授智能手机基本操作，微信使用，网上购物等", "各个广场舞队伍展示交流，设有奖品"],
+            #     "联系方式": ["张教练 138****1234", "李老师 139****5678", "王医生 137****9012", "小王 135****3456", "张主任 136****7890"],
+            # }
+            data_list = self.convert_to_column_format(data_list=data_list)
+            data_list_str = json.dumps(data_list, ensure_ascii=False, indent=2)
+            # result = self.format_table_data_markdown(type=content, key_mapping=key_mapping, data_list=data_list)
+            result = f"我是谁啊hi额发货IE发色鹅湖黑粉妇委会覅黑粉份额时<data_frame>{data_list_str}</data_frame><confirm>请确认您的订单</confirm><image>http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960</image><card>https://mastergo.com/goto/MEC86QId?page_id=M&file=170981350958046</card>"
+            
+            
+            
+            
         if type == "HEALTH_STATUS":
             result = """
             智能健康分析报告

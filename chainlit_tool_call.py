@@ -34,7 +34,6 @@ from api.table.user_data import UserData
 from agent.llm_api.ollama_llm import OllamaLLM
 from agent.config.llm_config import LLMConfig
 from agent.tool.direct_llm_community_ai_admin import DirectLLMCommunityAiAdmin
-from agent.tool.direct_llm_community_ai_user import DirectLLMCommunityAiUser
 from agent.tool.google_search import GoogleSearch
 from agent.tool.weather_api import WeatherApi
 from agent.tool.retrieval import Retrieval
@@ -51,11 +50,15 @@ environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
 print(environment)
 API_PREFIX = os.getenv("API_PREFIX")
 
+
 SEARCH_CONFIG_PATH = environment["SEARCH_CONFIG_PATH"] if "SEARCH_CONFIG_PATH" in environment else None
 QWEN_OLLAMA_CONFIG_PATH = environment["LLM_CONFIG_PATH"] if "LLM_CONFIG_PATH" in environment else None
 SQL_CONFIG_PATH = environment["SQL_CONFIG_PATH"] if "SQL_CONFIG_PATH" in environment else None
 DEFAULT_RETRIEVAL_DATA_PATH = environment["RETRIEVAL_DATA_PATH"] if "RETRIEVAL_DATA_PATH" in environment else None
 DEFAULT_RETRIEVAL_STORAGE_PATH = environment["RETRIEVAL_STORAGE_PATH"] if "RETRIEVAL_STORAGE_PATH" in environment else None
+DEFAULT_MODEL_PATH = environment["MODEL_PATH"] if "MODEL_PATH" in environment else None
+DEFAULT_MODEL_PATH = "/work/ai/agent_chainlit/models"
+
 
 QWEN_OLLAMA_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml") if QWEN_OLLAMA_CONFIG_PATH is None else QWEN_OLLAMA_CONFIG_PATH
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml") if SQL_CONFIG_PATH is None else SQL_CONFIG_PATH
@@ -64,13 +67,18 @@ DEFAULT_RETRIEVAL_STORAGE_PATH = str(ROOT_DIRECTORY / "retrieval_storage") if DE
 DEFAULT_EMBEDDING_MODEL = str(ROOT_DIRECTORY / "models" / "embedding" / "AI-ModelScope" / "bge-large-zh-v1.5")
 
 
+print(f"QWEN_OLLAMA_CONFIG_PATH: ------------------------ {QWEN_OLLAMA_CONFIG_PATH}")
+print(f"DEFAULT_RETRIEVAL_DATA_PATH: ------------------------ {DEFAULT_RETRIEVAL_DATA_PATH}")
+print(f"DEFAULT_RETRIEVAL_STORAGE_PATH: ------------------------ {DEFAULT_RETRIEVAL_STORAGE_PATH}")
+print(f"DEFAULT_MODEL_PATH: ------------------------ {DEFAULT_MODEL_PATH}")
+
+
 llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path(QWEN_OLLAMA_CONFIG_PATH)))
 sql_config = SqlConfig.from_file(SQL_CONFIG_PATH)
-enhance_qwen_admin = EnhanceRetrieval(llm=llm_qwen, retrieval_flag=False, data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
-enhance_qwen_user = EnhanceRetrieval(llm=llm_qwen, data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
-retrieval = Retrieval(data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
+enhance_qwen_admin = EnhanceRetrieval(llm=llm_qwen, retrieval_flag=False, embedding_model_path=DEFAULT_MODEL_PATH, data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
+enhance_qwen_user = EnhanceRetrieval(llm=llm_qwen, embedding_model_path=DEFAULT_MODEL_PATH, data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
+retrieval = Retrieval(data_dir=DEFAULT_RETRIEVAL_DATA_PATH, embedding_model_path=DEFAULT_MODEL_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
 direct_llm_tool = DirectLLMCommunityAiAdmin(enhance_llm=enhance_qwen_admin)
-direct_llm_tool_user = DirectLLMCommunityAiUser(enhance_llm=enhance_qwen_admin)
 google_search_tool = GoogleSearch(retrieval=retrieval)
 weather_api = WeatherApi()
 handle_tongzhi_tonggao = HandleTongzhiTonggao(enhance_llm=enhance_qwen_admin)
@@ -93,6 +101,7 @@ from tools.food_service import FoodService
 from tools.course_service import CourseService
 from tools.subsidy_service import SubsidyService
 from tools.client_service import ClientService
+
 
 data_center = DataCenter()
 service_provider = ServiceProvider()
@@ -132,6 +141,189 @@ def extract_and_clean_tool_info(text):
     clean_text = re.sub(clean_pattern, '', text)
     
     return clean_text, tool_name
+
+
+
+# def hash_password(password):
+#     """密码哈希"""
+#     return hashlib.sha256(password.encode()).hexdigest()
+
+
+# 功能菜单----------------------------------------------------------------------------------------------
+async def create_function_menu(user_role, community):
+    """根据用户角色创建不同的功能菜单"""
+    
+    if user_role == "admin":
+        # 管理员功能菜单
+        actions = [
+            cl.Action(
+                name="publish_notice",
+                payload={"action": "publish_notice"},
+                label="📢 发布通告"
+            ),
+            cl.Action(
+                name="view_statistics", 
+                payload={"action": "view_statistics"},
+                label="📊 数据统计"
+            ),
+            cl.Action(
+                name="user_management",
+                payload={"action": "user_management"},
+                label="👥 用户管理"
+            ),
+            cl.Action(
+                name="system_settings",
+                payload={"action": "system_settings"},
+                label="⚙️ 系统设置"
+            )
+        ]
+    else:
+        # 普通用户功能菜单
+        actions = [
+            cl.Action(
+                name="service_inquiry",
+                payload={"action": "service_inquiry"},
+                label="🏥 服务咨询"
+            ),
+            cl.Action(
+                name="online_shopping",
+                payload={"action": "online_shopping"},
+                label="🛒 在线购物"
+            ),
+            cl.Action(
+                name="food_service",
+                payload={"action": "food_service"},
+                label="🍽️ 餐饮服务"
+            ),
+            cl.Action(
+                name="course_booking",
+                payload={"action": "course_booking"},
+                label="📚 课程预约"
+            ),
+            cl.Action(
+                name="subsidy_inquiry",
+                payload={"action": "subsidy_inquiry"},
+                label="💰 补贴查询"
+            ),
+            cl.Action(
+                name="show_menu",
+                payload={"action": "show_menu"},
+                label="📋 主菜单"
+            )
+        ]
+    
+    return actions
+
+
+@cl.on_settings_update
+async def setup_menu(settings):
+    """处理菜单选择"""
+    selected_function = settings.get("quick_function")
+    
+    if selected_function == "📢 发布通告":
+        await cl.Message(content="📢 请输入您要发布的通告内容：").send()
+    elif selected_function == "📊 数据统计":
+        await cl.Message(content="📊 正在为您生成统计数据...").send()
+    elif selected_function == "👥 用户管理":
+        await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
+    elif selected_function == "⚙️ 系统设置":
+        await cl.Message(content="⚙️ 系统设置：\n1. 基础设置\n2. 安全设置\n3. 通知设置\n4. 备份设置").send()
+    elif selected_function == "🏥 服务咨询":
+        await cl.Message(content="🏥 服务咨询：请问您需要咨询什么服务？\n1. 医疗健康\n2. 生活服务\n3. 娱乐活动\n4. 其他服务").send()
+    elif selected_function == "🛒 在线购物":
+        await cl.Message(content="🛒 欢迎来到在线购物！请选择商品类别：\n1. 生活用品\n2. 食品饮料\n3. 健康用品\n4. 其他商品").send()
+    elif selected_function == "🍽️ 餐饮服务":
+        await cl.Message(content="🍽️ 餐饮服务：\n1. 查看今日菜单\n2. 预订餐食\n3. 营养咨询\n4. 特殊饮食需求").send()
+    elif selected_function == "📚 课程预约":
+        await cl.Message(content="📚 课程预约：\n1. 查看可预约课程\n2. 我的课程安排\n3. 取消预约\n4. 课程反馈").send()
+    elif selected_function == "💰 补贴查询":
+        await cl.Message(content="💰 补贴查询：\n1. 查看可申请补贴\n2. 补贴申请状态\n3. 历史补贴记录\n4. 补贴政策咨询").send()
+
+
+def create_chat_settings(user_role):
+    """创建固定的功能菜单设置面板"""
+    
+    if user_role == "admin":
+        return cl.ChatSettings([
+            cl.input_widget.Select(
+                id="quick_function",
+                label="🎯 快捷功能",
+                values=[
+                    "选择功能...",
+                    "📢 发布通告", 
+                    "📊 数据统计",
+                    "👥 用户管理", 
+                    "⚙️ 系统设置"
+                ],
+                initial_index=0,
+            )
+        ])
+    else:
+        return cl.ChatSettings([
+            cl.input_widget.Select(
+                id="quick_function", 
+                label="🎯 快捷功能",
+                values=[
+                    "选择功能...",
+                    "🏥 服务咨询",
+                    "🛒 在线购物", 
+                    "🍽️ 餐饮服务",
+                    "📚 课程预约",
+                    "💰 补贴查询"
+                ],
+                initial_index=0,
+            )
+        ])
+
+
+# 处理功能菜单点击事件
+@cl.action_callback("publish_notice")
+async def on_publish_notice(action):
+    await cl.Message(content="📢 请输入您要发布的通告内容：").send()
+
+@cl.action_callback("manage_services") 
+async def on_manage_services(action):
+    await cl.Message(content="🛠️ 服务管理功能已启动，请选择要管理的服务类型：\n1. 医疗服务\n2. 生活服务\n3. 娱乐服务").send()
+
+@cl.action_callback("view_statistics")
+async def on_view_statistics(action):
+    await cl.Message(content="📊 正在为您生成统计数据...").send()
+    # 这里可以调用你的数据统计功能
+    # 例如：生成图表、调用数据中心等
+
+@cl.action_callback("user_management")
+async def on_user_management(action):
+    await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
+
+@cl.action_callback("system_settings")
+async def on_system_settings(action):
+    await cl.Message(content="⚙️ 系统设置：\n1. 基础设置\n2. 安全设置\n3. 通知设置\n4. 备份设置").send()
+
+@cl.action_callback("service_inquiry")
+async def on_service_inquiry(action):
+    await cl.Message(content="🏥 服务咨询：请问您需要咨询什么服务？\n1. 医疗健康\n2. 生活服务\n3. 娱乐活动\n4. 其他服务").send()
+
+@cl.action_callback("online_shopping")
+async def on_online_shopping(action):
+    await cl.Message(content="🛒 欢迎来到在线购物！请选择商品类别：\n1. 生活用品\n2. 食品饮料\n3. 健康用品\n4. 其他商品").send()
+
+@cl.action_callback("food_service")
+async def on_food_service(action):
+    await cl.Message(content="🍽️ 餐饮服务：\n1. 查看今日菜单\n2. 预订餐食\n3. 营养咨询\n4. 特殊饮食需求").send()
+
+@cl.action_callback("course_booking")
+async def on_course_booking(action):
+    await cl.Message(content="📚 课程预约：\n1. 查看可预约课程\n2. 我的课程安排\n3. 取消预约\n4. 课程反馈").send()
+
+@cl.action_callback("subsidy_inquiry")
+async def on_subsidy_inquiry(action):
+    await cl.Message(content="💰 补贴查询：\n1. 查看可申请补贴\n2. 补贴申请状态\n3. 历史补贴记录\n4. 补贴政策咨询").send()
+
+@cl.action_callback("community_info")
+async def on_community_info(action):
+    await cl.Message(content="🏘️社区信息：\n1. 社区公告\n2. 活动安排\n3. 设施状态\n4. 联系方式").send()
+# 功能菜单----------------------------------------------------------------------------------------------
+
 
 
 @cl.data_layer
@@ -196,6 +388,62 @@ async def on_audio_chunk(chunk: cl.InputAudioChunk):
         audio_buffer.write(chunk.data)
 
 
+
+
+async def create_menu_cards():
+    """使用 CustomElement 创建菜单卡片"""
+    
+    # 菜品数据
+    dishes = [
+        {
+            "dish_id": "001",
+            "dish_name": "宫保鸡丁",
+            "category": "川菜",
+            "price": "¥28",
+            "ingredients": "鸡肉、花生、青椒、红椒",
+            "nutrition": "高蛋白、维生素C",
+            "rating": "4.8",
+            "availability": "有货",
+            "description": "经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香"
+        },
+        {
+            "dish_id": "002", 
+            "dish_name": "红烧狮子头",
+            "category": "淮扬菜",
+            "price": "¥35",
+            "ingredients": "猪肉、马蹄、冬菇、青菜",
+            "nutrition": "高蛋白、膳食纤维",
+            "rating": "4.6",
+            "availability": "有货",
+            "description": "淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富"
+        },
+        {
+            "dish_id": "003",
+            "dish_name": "清蒸鲈鱼",
+            "category": "粤菜",
+            "price": "¥42",
+            "ingredients": "新鲜鲈鱼、蒸鱼豉油、葱丝",
+            "nutrition": "高蛋白、低脂肪、DHA",
+            "rating": "4.9",
+            "availability": "缺货",
+            "description": "粤式经典，鱼肉鲜嫩，保持原汁原味"
+        }
+    ]
+    
+    # 创建自定义元素
+    menu_element = cl.CustomElement(
+        name="MenuCards",
+        props={"dishes": dishes}
+    )
+    
+    await cl.Message(
+        content="🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作",
+        elements=[menu_element]
+    ).send()
+
+
+
+
 @cl.on_audio_end
 async def on_audio_end(audio: cl.Audio):
     """处理录音结束"""
@@ -216,6 +464,52 @@ async def on_chat_resume(thread):
     pass
 
 
+async def show_confirmation_popup(content="确认此操作吗？"):
+    """类似弹窗的确认对话框"""
+    try:
+        # 使用AskUserMessage创建类似弹窗的体验
+        res = await cl.AskUserMessage(
+            content=f"⚠️ **确认操作**\n\n{content}\n\n请输入 **确认** 或 **取消**：",
+            timeout=30
+        ).send()
+        
+        if res:
+            user_input = res['output'].lower().strip()
+            if '确认' in user_input or 'yes' in user_input or 'y' == user_input:
+                await cl.Message(content="✅ 操作已确认").send()
+                return True
+            else:
+                await cl.Message(content="❌ 操作已取消").send()
+                return False
+        else:
+            await cl.Message(content="⏰ 操作超时，已自动取消").send()
+            return False
+            
+    except Exception as e:
+        await cl.Message(content="❌ 确认过程出错，操作已取消").send()
+        return False
+
+
+async def show_confirmation(content="确认此操作吗？"):
+    actions = [
+        cl.Action(name="continue", payload={"value": "确认"}, label="🟢 确认操作"),
+        cl.Action(name="cancel", payload={"value": "取消"}, label="🔴 取消操作")
+    ]
+    
+    res = await cl.AskActionMessage(
+        content=f"⚠️ **操作确认**\n\n{content}",
+        actions=actions
+    ).send()
+    
+    
+    if res and res.get("payload").get("value") == "确认":
+        # 调用确认接口
+        await cl.Message(
+            content="确认!",
+        ).send()
+
+
+
 @cl.on_message  
 async def main(message: cl.Message):
     """
@@ -224,6 +518,19 @@ async def main(message: cl.Message):
     Args:
         message: 用户的消息，包含文本内容和可能的附件
     """
+    # 处理菜单按钮点击
+    if message.content.startswith("###MENU_ACTION###"):
+        action_id = message.content.replace("###MENU_ACTION###", "")
+        
+        # 根据action_id处理不同功能
+        if action_id == "publish_notice":
+            await cl.Message(content="📢 请输入您要发布的通告内容：").send()
+        elif action_id == "view_statistics":
+            await cl.Message(content="📊 正在为您生成统计数据...").send()
+        elif action_id == "user_management":
+            await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
+    
+    
     user = cl.user_session.get("user")
     community = user.metadata.get("community") if user.metadata else None
     role = user.metadata.get("role") if user.metadata else None
@@ -328,8 +635,37 @@ async def main(message: cl.Message):
                     # 检测完整的 <image>path</image> 标签
                     match = re.search(r'<image>(.*?)</image>', content_buffer)
                     match_zhuyunying = re.search(r'<zhuyunying>(.*?)</zhuyunying>', content_buffer)
+                    match_confirm = re.search(r'<confirm>(.*?)</confirm>', content_buffer)
+                    match_card = re.search(r'<card>(.*?)</card>', content_buffer)
+                    # 添加调试信息
+                    print(f"content_buffer 内容: {content_buffer}")
+                    print(f"是否匹配到 confirm: {match_confirm is not None}")
                     
-                    
+                    if match_card:
+                        print(f"匹配到 confirm: {match_card.group(1)}")
+                        card_content = match_card.group(1).strip()
+                        await create_menu_cards()  # 调用新的函数
+                    if match_confirm:
+                        print(f"匹配到 confirm: {match_confirm.group(1)}")
+                        # print(match_confirm.group(1).strip())
+                        confirm_content = match_confirm.group(1).strip()
+                        # await show_confirmation_popup(confirm_content)
+                        # 创建卡片
+                        card = cl.Card(
+                            title="产品信息",
+                            content="这是一个产品的详细信息卡片",
+                            image="http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",  # 可选的图片
+                            actions=[
+                                cl.Action(name="view_details", value="detail_1", label="查看详情"),
+                                cl.Action(name="buy_now", value="buy_1", label="立即购买")
+                            ]
+                        )
+                        
+                        await cl.Message(
+                            content="以下是推荐的产品：",
+                            elements=[card]
+                        ).send()
+                        
                     if match_zhuyunying:
                         # 数据
                         sites = ["幸福站", "和谐站", "康乐站"]
@@ -369,7 +705,6 @@ async def main(message: cl.Message):
                             elements=[cl.Plotly(name="chart", figure=fig, display="inline")]
                         ).send()
                     
-                    
                     if match:
                         # 找到完整标签
                         image_path = match.group(1).strip()
@@ -397,11 +732,14 @@ async def main(message: cl.Message):
                         # 没有完整标签，输出当前chunk
                         await msg.stream_token(chunk)
                         # 保留一定长度的buffer防止标签被分割
-                        if len(content_buffer) > 100:  # 保留最后100个字符
-                            content_buffer = content_buffer[-100:]
-                    
+                        # if len(content_buffer) > 100:  # 保留最后100个字符
+                        #     content_buffer = content_buffer[-100:]
+                
+                
+
+                
                 await msg.send()
-          
+
             else:
                 async for chunk in planning_agent.execute(
                     question=user_text, 
@@ -417,6 +755,11 @@ async def main(message: cl.Message):
         except Exception as e:
             error_msg = f"处理请求时发生错误: {str(e)}"
             await cl.Message(content=error_msg).send()
+        finally:
+            # 可以在这里添加会话提示功能。每次对话回复完成以后都添加
+            # 将会话提示以按钮的形式输出
+            pass
+
 
 
 @cl.on_chat_start
@@ -444,6 +787,11 @@ async def start():
             # 从用户元数据中获取角色，如果没有则查询数据库
             user_role = user.metadata.get("role") if user.metadata else None
             community = user.metadata.get("community") if user.metadata else None
+            
+            # 添加这两行代码：
+            chat_settings = create_chat_settings(user_role)
+            await chat_settings.send()
+            
             # 根据角色显示不同内容
             if user_role == "admin":
                 message_content = f"""
@@ -469,6 +817,7 @@ async def start():
                 
         except Exception as e:
             # 数据库查询失败，显示默认消息
+            print(f"{str(e)}")
             await cl.Message(content=f"{community}超管，您好！您可以直接上传文件或纯文字到会话框！").send()
     else:
         # 用户未登录，显示默认消息

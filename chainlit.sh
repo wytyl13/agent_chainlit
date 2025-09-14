@@ -27,7 +27,7 @@ else
     CONDA_ENV_PATH='/work/soft/anaconda3/bin/'
 fi
 
-
+mkdir .files
 if [ -n "$1" ]; then
     PROJECT_ROOT="$1"
 else

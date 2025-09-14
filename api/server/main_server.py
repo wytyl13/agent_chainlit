@@ -5,15 +5,35 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import argparse
+from dotenv import load_dotenv, dotenv_values
+import os
 
 # 导入各个服务类
+from agent.llm_api.ollama_llm import OllamaLLM
+from agent.config.llm_config import LLMConfig
 from api.server.community_real_time_data_server import CommunityRealTimeDataServer
 from api.server.user_data_server import UserDataServer
+from api.server.function_call_server import FunctionCallServer
+from agent.tool.enhance_retrieval import EnhanceRetrieval
 
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
+OLLAMA_QWEN_CONFIG = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml")
 
+
+
+environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
+print(environment)
+QWEN_OLLAMA_CONFIG_PATH = environment["LLM_CONFIG_PATH"] if "LLM_CONFIG_PATH" in environment else None
+RETRIEVAL_DATA_PATH = environment["RETRIEVAL_DATA_PATH"] if "RETRIEVAL_DATA_PATH" in environment else None
+RETRIEVAL_STORAGE_PATH = environment["RETRIEVAL_STORAGE_PATH"] if "RETRIEVAL_STORAGE_PATH" in environment else None
+MODEL_PATH = environment["MODEL_PATH"] if "MODEL_PATH" in environment else None
+
+QWEN_OLLAMA_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml") if not os.path.exists(QWEN_OLLAMA_CONFIG_PATH) else QWEN_OLLAMA_CONFIG_PATH
+DEFAULT_RETRIEVAL_DATA_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / RETRIEVAL_DATA_PATH) if not os.path.exists(RETRIEVAL_DATA_PATH) else RETRIEVAL_DATA_PATH
+DEFAULT_RETRIEVAL_STORAGE_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / RETRIEVAL_STORAGE_PATH) if not os.path.exists(RETRIEVAL_STORAGE_PATH) else RETRIEVAL_STORAGE_PATH
+DEFAULT_MODEL_PATH = str(ROOT_DIRECTORY / MODEL_PATH) if not os.path.exists(MODEL_PATH) else MODEL_PATH
 
 class AeroSenseMainServer:
     """主服务器类，统一管理所有服务"""
@@ -26,7 +46,17 @@ class AeroSenseMainServer:
         # 初始化各个服务
         self.community_service = CommunityRealTimeDataServer(self.sql_config_path)
         self.user_service = UserDataServer(self.sql_config_path)
-        
+        self.ollama_qwen_llm = OllamaLLM(config=LLMConfig.from_file(Path(OLLAMA_QWEN_CONFIG)))
+        self.enhance_qwen_admin = EnhanceRetrieval(
+            llm=self.ollama_qwen_llm, 
+            retrieval_flag=False, 
+            data_dir=DEFAULT_RETRIEVAL_DATA_PATH, 
+            index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH,
+            embedding_model_path="/work/ai/agent/models"
+        )
+        self.function_call_server = FunctionCallServer(
+            enhance_retrieval=self.enhance_qwen_admin
+        )
         # 设置应用
         self._setup_middleware()
         self._setup_base_routes()
@@ -62,6 +92,7 @@ class AeroSenseMainServer:
             self.logger.info(f"[响应状态] {response.status_code}")
             return response
     
+    
     def _setup_base_routes(self):
         """设置基础路由"""
         @self.app.get("/")
@@ -77,6 +108,7 @@ class AeroSenseMainServer:
                 "services": ["device", "community", "user", "sleep"]
             }
     
+    
     def _register_all_services(self):
         """注册所有服务的路由"""
         
@@ -86,7 +118,10 @@ class AeroSenseMainServer:
         # 注册用户服务路由
         self.user_service.register_routes(self.app)
         
-    
+        # 注册工具调用服务路由
+        self.function_call_server.register_routes(self.app)
+
+
     def run(
         self, 
         host: str = "0.0.0.0", 

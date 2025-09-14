@@ -236,19 +236,25 @@ query_num: # 检索条目数
 
 
 ## 📚 API文档
-
-API服务提供RESTful接口，支持多种参数传递方式：
-
-### 请求方式
-- **URL参数**: `GET /api/endpoint?param1=value1&param2=value2`
-- **JSON请求体**: `POST /api/endpoint` with JSON payload
-
-### 响应格式
-```json
+/chat/function_call/start   POST
+JSON请求体:
 {
-  "code": 200,
-  "message": "success",
-  "data": {}
+    "question": "确认",
+    "messages": [
+        {"role": "user", "content": "我要新增一个角色"},
+        {"role": "assistant", "content": "请提供具体的角色名称！"},
+        {"role": "user", "content": "产品经理"},
+        {"role": "assistant", "content": "请提供具体的权限！您可以从如下权限中选择：['服务项目管理', '商品分类管理', '设备类别管理']"},
+        {"role": "user", "content": "服务项目和商品分类"},
+        {"role": "assistant", "content": "<text_value>好的，收到新增：产品经理 * ['服务项目管理', '商品分类管理']。</text_value><confirm>请确认是否操作新增？</confirm>"}
+    ]
+}
+
+RESPONSE:
+{
+	"success": true,
+	"data": "好的，已为您新增角色产品经理，新增后的权限如下： ['服务项目管理', '商品分类管理']",
+	"timestamp": "2025-09-13T09:25:28.136573"
 }
 ```
 

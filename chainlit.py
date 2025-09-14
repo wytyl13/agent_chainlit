@@ -17,6 +17,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 import io
+from typing import (
+    Dict
+)
+
 
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 from chainlit.data.storage_clients.azure import AzureStorageClient
@@ -29,12 +33,10 @@ project_root = str(ROOT_DIRECTORY)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-
 from api.table.user_data import UserData
 from agent.llm_api.ollama_llm import OllamaLLM
 from agent.config.llm_config import LLMConfig
 from agent.tool.direct_llm_community_ai_admin import DirectLLMCommunityAiAdmin
-from agent.tool.direct_llm_community_ai_user import DirectLLMCommunityAiUser
 from agent.tool.google_search import GoogleSearch
 from agent.tool.weather_api import WeatherApi
 from agent.tool.retrieval import Retrieval
@@ -45,71 +47,17 @@ from agent.tool.handle_shixun_tonggao import HandleTongzhiTonggao
 from api.table.community_real_time_data import CommunityRealTimeData
 from agent.tool.water_machine_api import WaterMachineApi
 from agent.config.sql_config import SqlConfig
+from tag_processor import TagProcessor
 
-
+tag_process = TagProcessor()
 environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
 print(environment)
 API_PREFIX = os.getenv("API_PREFIX")
+START_SERVICE_API = f"{API_PREFIX}/chat/function_call/start"
 
-SEARCH_CONFIG_PATH = environment["SEARCH_CONFIG_PATH"] if "SEARCH_CONFIG_PATH" in environment else None
-QWEN_OLLAMA_CONFIG_PATH = environment["LLM_CONFIG_PATH"] if "LLM_CONFIG_PATH" in environment else None
 SQL_CONFIG_PATH = environment["SQL_CONFIG_PATH"] if "SQL_CONFIG_PATH" in environment else None
-DEFAULT_RETRIEVAL_DATA_PATH = environment["RETRIEVAL_DATA_PATH"] if "RETRIEVAL_DATA_PATH" in environment else None
-DEFAULT_RETRIEVAL_STORAGE_PATH = environment["RETRIEVAL_STORAGE_PATH"] if "RETRIEVAL_STORAGE_PATH" in environment else None
-
-QWEN_OLLAMA_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml") if QWEN_OLLAMA_CONFIG_PATH is None else QWEN_OLLAMA_CONFIG_PATH
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml") if SQL_CONFIG_PATH is None else SQL_CONFIG_PATH
-DEFAULT_RETRIEVAL_DATA_PATH = str(ROOT_DIRECTORY / "retrieval_data") if DEFAULT_RETRIEVAL_DATA_PATH is None else DEFAULT_RETRIEVAL_DATA_PATH
-DEFAULT_RETRIEVAL_STORAGE_PATH = str(ROOT_DIRECTORY / "retrieval_storage") if DEFAULT_RETRIEVAL_DATA_PATH is None else DEFAULT_RETRIEVAL_DATA_PATH
-DEFAULT_EMBEDDING_MODEL = str(ROOT_DIRECTORY / "models" / "embedding" / "AI-ModelScope" / "bge-large-zh-v1.5")
-
-
-llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path(QWEN_OLLAMA_CONFIG_PATH)))
 sql_config = SqlConfig.from_file(SQL_CONFIG_PATH)
-enhance_qwen_admin = EnhanceRetrieval(llm=llm_qwen, retrieval_flag=False, data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
-enhance_qwen_user = EnhanceRetrieval(llm=llm_qwen, data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
-retrieval = Retrieval(data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
-direct_llm_tool = DirectLLMCommunityAiAdmin(enhance_llm=enhance_qwen_admin)
-direct_llm_tool_user = DirectLLMCommunityAiUser(enhance_llm=enhance_qwen_admin)
-google_search_tool = GoogleSearch(retrieval=retrieval)
-weather_api = WeatherApi()
-handle_tongzhi_tonggao = HandleTongzhiTonggao(enhance_llm=enhance_qwen_admin)
-water_machine_api = WaterMachineApi()
-
-
-init_tools_admin = [handle_tongzhi_tonggao, direct_llm_tool, google_search_tool, weather_api, water_machine_api]
-planning_agent = PlanningAgentCommunityAiAdmin(
-    tools=init_tools_admin, 
-    enhance_llm=enhance_qwen_admin
-)
-
-
-
-
-from tools.data_center import DataCenter
-from tools.service_provider import ServiceProvider
-from tools.online_market import OnlineMarket
-from tools.food_service import FoodService
-from tools.course_service import CourseService
-from tools.subsidy_service import SubsidyService
-from tools.client_service import ClientService
-
-
-data_center = DataCenter()
-service_provider = ServiceProvider()
-online_market = OnlineMarket()
-food_service = FoodService()
-course_service = CourseService()
-subsidy_service = SubsidyService()
-client_service = ClientService()
-
-# init_tools_user = [direct_llm_tool_user, handle_tongzhi_tonggao, data_center]
-init_tools_user = [handle_tongzhi_tonggao, data_center, service_provider, online_market, food_service, course_service, subsidy_service, client_service]
-planning_agent_user = PlanningAgentCommunityAiUser(
-    tools=init_tools_user, 
-    enhance_llm=enhance_qwen_admin
-)
-
 
 # 在文件顶部添加全局变量
 audio_buffer = None
@@ -333,6 +281,38 @@ async def tool_1():
     return "Response from the tool!"
 
 
+def request_url(url: str, param_dict: Dict, method: Optional[str] = "POST"):
+    # 同步版本
+    try:
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        print(param_dict)
+        print(url)
+        if method.upper() == 'GET':
+            response = requests.get(url, params=param_dict, headers=headers, timeout=10)
+        elif method.upper() == 'POST':
+            # POST请求：参数放在请求体中
+            response = requests.post(url, json=param_dict, headers=headers, timeout=10)
+        else:
+            # 其他方法
+            response = requests.request(method, url, json=param_dict, headers=headers, timeout=10)
+        response.raise_for_status()
+        result = response.json()
+        if isinstance(result, dict):
+            if result.get("success") and "data" in result:
+                return result["data"]
+            elif result.get("success") and "message" in result:
+                return result["message"]
+            elif not result.get("success"):
+                return result.get('message', 'Unknown error')
+        return result
+    except Exception as e:
+        return str(e)
+
+
 @cl.password_auth_callback
 def auth_callback(username: str, password: str) -> Optional[cl.User]:
     
@@ -378,8 +358,6 @@ async def on_audio_chunk(chunk: cl.InputAudioChunk):
     # 将音频块写入缓冲区
     if chunk.data:
         audio_buffer.write(chunk.data)
-
-
 
 
 async def create_menu_cards():
@@ -432,8 +410,6 @@ async def create_menu_cards():
         content="🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作",
         elements=[menu_element]
     ).send()
-
-
 
 
 @cl.on_audio_end
@@ -575,7 +551,6 @@ async def main(message: cl.Message):
         chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
         print(f"chat_history: ------------------------------- {chat_history}")
         
-        tools = []
         if chat_history:
             if len(chat_history) <= 8:
                 chat_history = chat_history[1:-1]
@@ -586,163 +561,136 @@ async def main(message: cl.Message):
                 for i in range(0, len(chat_history)-1, 2) 
                 if chat_history[i]['role'] == 'user' and chat_history[i+1]['role'] == 'assistant']
             print(chat_history)
-            if chat_history:
-                _, tool_name = extract_and_clean_tool_info(chat_history[-1][-1])
-                print(f"tool_name: ---- {tool_name}")
-                for tool in planning_agent.tools:
-                    if hasattr(tool, 'name') and tool.name == tool_name:
-                        tools.append(tool)
-                        break
         print(f"chat_history: ------------------------------- {chat_history}")
         chat_history = []
         try:
             if role == "user":
-                # async for chunk in planning_agent_user.execute(
-                #     question=user_text, 
-                #     chat_history=chat_history, 
-                #     username=user.identifier, 
-                #     retrieval_flag=True,
-                #     location=community,
-                #     role=role,
-                #     tools=tools if tools else init_tools_user
-                # ):
-                #     await msg.stream_token(chunk)
-                
                 msg = cl.Message(content="")
                 content_buffer = ""
-
-                async for chunk in planning_agent_user.execute(
-                    question=user_text, 
-                    chat_history=chat_history, 
-                    username=user.identifier, 
-                    retrieval_flag=False,
-                    location=community,
-                    role=role,
-                    tools=tools if tools else init_tools_user
-                ):
-                    # 先添加到buffer，不要立即输出
-                    content_buffer += chunk
-                    # print(f"chunk: ----------------------------------- {chunk}")
-                    # print(f"content_buffer: ----------------------------------- {content_buffer}")
-                    # 检测完整的 <image>path</image> 标签
-                    match = re.search(r'<image>(.*?)</image>', content_buffer)
-                    match_zhuyunying = re.search(r'<zhuyunying>(.*?)</zhuyunying>', content_buffer)
-                    match_confirm = re.search(r'<confirm>(.*?)</confirm>', content_buffer)
-                    match_card = re.search(r'<card>(.*?)</card>', content_buffer)
-                    # 添加调试信息
-                    print(f"content_buffer 内容: {content_buffer}")
-                    print(f"是否匹配到 confirm: {match_confirm is not None}")
+                param_dict = {
+                    "question": user_text,
+                    "messages": chat_history
+                }
+                result = request_url(
+                    url=START_SERVICE_API,
+                    param_dict=param_dict
+                )
+                print("================================")
+                print(result)
+                print("================================")
+                segments = tag_process.parse_content(content=result)
+                result_seg = await tag_process.process_segments(segments=segments)
+                
+                # for item in result:
+                #     # <confirm>请确定你的订单</confirm>
+                #     # <card>JSON数据</card>
+                #     # <image></image>
+                #     await msg.stream_token(item)
+                match = re.search(r'<image>(.*?)</image>', result)
+                match_zhuyunying = re.search(r'<zhuyunying>(.*?)</zhuyunying>', result)
+                match_confirm = re.search(r'<confirm>(.*?)</confirm>', result)
+                match_card = re.search(r'<card>(.*?)</card>', result)
+                # 添加调试信息
+                # match_dataframe = re.search(r'<data_frame>(.*?)</data_frame>', result, re.DOTALL)
+                # if match_dataframe:
+                #     print(f"匹配到 match_dataframe: {match_dataframe.group(1)}")
+                #     import pandas as pd
+                #     import json
+                #     dataframe_content = match_dataframe.group(1).strip()
+                #     data_list = json.loads(dataframe_content)
+                #     df = pd.DataFrame(data_list)
+                #     elements = [cl.Dataframe(data=df, display="inline", name="Dataframe")]
+                #     await cl.Message(content="This message has a Dataframe", elements=elements).send()
                     
-                    if match_card:
-                        print(f"匹配到 confirm: {match_card.group(1)}")
-                        card_content = match_card.group(1).strip()
-                        await create_menu_cards()  # 调用新的函数
-                    if match_confirm:
-                        print(f"匹配到 confirm: {match_confirm.group(1)}")
-                        # print(match_confirm.group(1).strip())
-                        confirm_content = match_confirm.group(1).strip()
-                        # await show_confirmation_popup(confirm_content)
-                        # 创建卡片
-                        card = cl.Card(
-                            title="产品信息",
-                            content="这是一个产品的详细信息卡片",
-                            image="http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",  # 可选的图片
-                            actions=[
-                                cl.Action(name="view_details", value="detail_1", label="查看详情"),
-                                cl.Action(name="buy_now", value="buy_1", label="立即购买")
-                            ]
-                        )
-                        
-                        await cl.Message(
-                            content="以下是推荐的产品：",
-                            elements=[card]
-                        ).send()
-                        
-                    if match_zhuyunying:
-                        # 数据
-                        sites = ["幸福站", "和谐站", "康乐站"]
-                        orders = [865, 743, 621]
-                        satisfaction = [0.99, 0.98, 0.97]
-                        
-                        # 创建子图
-                        fig = make_subplots(
-                            rows=1, cols=2,
-                            subplot_titles=("订单数统计", "满意度统计"),
-                            specs=[[{"secondary_y": False}, {"secondary_y": False}]]
-                        )
-                        
-                        # 添加订单数柱状图
-                        fig.add_trace(
-                            go.Bar(x=sites, y=orders, name="订单数", marker_color='lightblue'),
-                            row=1, col=1
-                        )
-                        
-                        # 添加满意度柱状图
-                        fig.add_trace(
-                            go.Bar(x=sites, y=satisfaction, name="满意度", marker_color='lightgreen'),
-                            row=1, col=2
-                        )
-                        
-                        # 更新布局
-                        fig.update_layout(
-                            title="智慧养老社区 - 各站点运营数据",
-                            showlegend=False,
-                            title_x=0.5,
-                            height=400,
-                        )
-                        
-                        # 发送图表
-                        await cl.Message(
-                            content="以下是各站点运营数据的柱状图展示：",
-                            elements=[cl.Plotly(name="chart", figure=fig, display="inline")]
-                        ).send()
+                if match_card:
+                    print(f"匹配到 match_card: {match_card.group(1)}")
+                    card_content = match_card.group(1).strip()
+                    await create_menu_cards()  # 调用新的函数
+                
+                if match_confirm:
+                    print(f"匹配到 confirm: {match_confirm.group(1)}")
+                    # print(match_confirm.group(1).strip())
+                    confirm_content = match_confirm.group(1).strip()
+                    # await show_confirmation_popup(confirm_content)
+                    # 创建卡片
+                    card = cl.Card(
+                        title="产品信息",
+                        content="这是一个产品的详细信息卡片",
+                        image="http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",  # 可选的图片
+                        actions=[
+                            cl.Action(name="view_details", value="detail_1", label="查看详情"),
+                            cl.Action(name="buy_now", value="buy_1", label="立即购买")
+                        ]
+                    )
                     
-                    if match:
-                        # 找到完整标签
-                        image_path = match.group(1).strip()
-                        
-                        print(f"找到图像: {image_path}")
-                        
-                        # 显示图像
-                        try:
-                            import os
-                            if os.path.exists(image_path):
-                                image = cl.Image(
-                                    name="图片",
-                                    display="inline",
-                                    path=image_path
-                                )
-                                await cl.Message(content="🖼️", elements=[image]).send()
-                            else:
-                                await cl.Message(content=f"❌ 图片不存在: {image_path}").send()
-                            break
-                        except Exception as e:
-                            await cl.Message(content=f"❌ 错误: {str(e)}").send()
-                            break
-                        
-                    else:
-                        # 没有完整标签，输出当前chunk
-                        await msg.stream_token(chunk)
-                        # 保留一定长度的buffer防止标签被分割
-                        # if len(content_buffer) > 100:  # 保留最后100个字符
-                        #     content_buffer = content_buffer[-100:]
+                    await cl.Message(
+                        content="以下是推荐的产品：",
+                        elements=[card]
+                    ).send()
+                    
+                if match_zhuyunying:
+                    # 数据
+                    sites = ["幸福站", "和谐站", "康乐站"]
+                    orders = [865, 743, 621]
+                    satisfaction = [0.99, 0.98, 0.97]
+                    
+                    # 创建子图
+                    fig = make_subplots(
+                        rows=1, cols=2,
+                        subplot_titles=("订单数统计", "满意度统计"),
+                        specs=[[{"secondary_y": False}, {"secondary_y": False}]]
+                    )
+                    
+                    # 添加订单数柱状图
+                    fig.add_trace(
+                        go.Bar(x=sites, y=orders, name="订单数", marker_color='lightblue'),
+                        row=1, col=1
+                    )
+                    
+                    # 添加满意度柱状图
+                    fig.add_trace(
+                        go.Bar(x=sites, y=satisfaction, name="满意度", marker_color='lightgreen'),
+                        row=1, col=2
+                    )
+                    
+                    # 更新布局
+                    fig.update_layout(
+                        title="智慧养老社区 - 各站点运营数据",
+                        showlegend=False,
+                        title_x=0.5,
+                        height=400,
+                    )
+                    
+                    # 发送图表
+                    await cl.Message(
+                        content="以下是各站点运营数据的柱状图展示：",
+                        elements=[cl.Plotly(name="chart", figure=fig, display="inline")]
+                    ).send()
                 
-                
-
-                
+                if match:
+                    # 找到完整标签
+                    image_path = match.group(1).strip()
+                    
+                    print(f"找到图像: {image_path}")
+                    
+                    # 显示图像
+                    try:
+                        import os
+                        if os.path.exists(image_path):
+                            image = cl.Image(
+                                name="图片",
+                                display="inline",
+                                path=image_path
+                            )
+                            await cl.Message(content="🖼️", elements=[image]).send()
+                        else:
+                            await cl.Message(content=f"❌ 图片不存在: {image_path}").send()
+                    except Exception as e:
+                        await cl.Message(content=f"❌ 错误: {str(e)}").send()
+                    
                 await msg.send()
-
             else:
-                async for chunk in planning_agent.execute(
-                    question=user_text, 
-                    chat_history=chat_history, 
-                    username=user.identifier, 
-                    retrieval_flag=False,
-                    location=community,
-                    role=role,
-                    tools=tools if tools else init_tools_admin
-                ):
-                    await msg.stream_token(chunk)
+                await msg.stream_token("暂未开通")
             await msg.send()
         except Exception as e:
             error_msg = f"处理请求时发生错误: {str(e)}"
