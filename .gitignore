@@ -11,3 +11,7 @@ retrieval_storage
 __pycache__/
 *.pyc
 *.pyo
+agent
+.chainlit
+.files/
+tools/data_center copy.py

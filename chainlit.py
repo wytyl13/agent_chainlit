@@ -517,7 +517,15 @@ async def main(message: cl.Message):
         print(f"role: ================ {role}")
         chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
         print(f"chat_history: ------------------------------- {chat_history}")
-        chat_history = chat_history[-10:]
+        
+        chat_history = chat_history[1:] if chat_history else chat_history
+        if len(chat_history) > 6:
+            content = ""
+            for i in range(6):
+                content += chat_history[i]["content"]
+            chat_history[6]["content"] += content     
+
+        
         print(f"chat_history: ------------------------------- {chat_history}")
         try:
             if role == "user":
@@ -531,6 +539,9 @@ async def main(message: cl.Message):
                     url=START_SERVICE_API,
                     param_dict=param_dict
                 )
+                print("111================================111")
+                print(param_dict['messages'])
+                print("111================================111")
                 print("================================")
                 print(result)
                 print("================================")

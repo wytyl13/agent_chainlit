@@ -21,7 +21,8 @@ ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
 
 sql_config = SqlConfig.from_file(SQL_CONFIG_PATH)
-
+print("--------------------------------------")
+print(sql_config)
 
 async def check_tables_exist():
     """检查表是否已存在"""

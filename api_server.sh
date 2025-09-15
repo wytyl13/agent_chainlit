@@ -4,7 +4,7 @@ if [ -f ".env" ]; then
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print(os.getenv('API_PORT', '8890'))
+print(os.getenv('API_PORT', '8891'))
 ")
     CONDA_ENV_PATH=$(python -c "
 import os

@@ -7,7 +7,7 @@ if [ -f ".env" ]; then
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print(os.getenv('CHAINLIT_PORT', '5002'))
+print(os.getenv('CHAINLIT_PORT', '5004'))
 ")
     CONDA_ENVIRONMENT=$(python -c "
 import os
@@ -22,7 +22,7 @@ load_dotenv()
 print(os.getenv('CONDA_ENV_PATH', '/work/soft/anaconda3/bin/'))
 ")
 else
-    CHAINLIT_PORT=5002
+    CHAINLIT_PORT=5004
     CONDA_ENVIRONMENT='agent_chainlit'
     CONDA_ENV_PATH='/work/soft/anaconda3/bin/'
 fi

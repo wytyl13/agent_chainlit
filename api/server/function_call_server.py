@@ -42,12 +42,17 @@ from tools.client_service import ClientService
 from tools.role import Role
 from agent.tool.function_call import FunctionCall
 from tools.food_service import FoodService
+from tools.government_grant import GovernmentGrant
+from tools.procurement_project import ProcurementProject
 
 client_service = ClientService()
 order = Order()
 role = Role()
 food_service = FoodService()
-tools_start = [client_service, role, food_service]
+government_grant = GovernmentGrant()
+procurement_project = ProcurementProject()
+tools_start = [client_service, order, role, food_service,government_grant,procurement_project]
+
 
 
 class FunctionCallServerRequest(BaseModel):
@@ -74,6 +79,8 @@ class FunctionCallServer:
             enhance_llm=self.enhance_retrieval,
         )
 
+        self.logger = logging.getLogger(self.__class__.__name__)
+
 
     def register_routes(self, app: FastAPI):
         """注册路由"""
@@ -91,6 +98,7 @@ class FunctionCallServer:
         try:
             question = function_call_server_request.question
             messages = function_call_server_request.messages
+            
         except Exception as e:
             result = f"传参错误！{str(e)}"
             for item in result:
@@ -121,6 +129,7 @@ class FunctionCallServer:
         try:
             question = function_call_server_request.question
             messages = function_call_server_request.messages
+            
         except Exception as e:
             return JSONResponse(
                 status_code=400,
