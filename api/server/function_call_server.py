@@ -47,7 +47,7 @@ client_service = ClientService()
 order = Order()
 role = Role()
 food_service = FoodService()
-tools_start = [client_service, order, role, food_service]
+tools_start = [client_service, role, food_service]
 
 
 class FunctionCallServerRequest(BaseModel):

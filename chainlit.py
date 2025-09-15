@@ -517,9 +517,7 @@ async def main(message: cl.Message):
         print(f"role: ================ {role}")
         chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
         print(f"chat_history: ------------------------------- {chat_history}")
-        
-        chat_history = chat_history[1:-1] if chat_history else chat_history
-        chat_history = chat_history[:6] if len(chat_history) < 6 else chat_history
+        chat_history = chat_history[-10:]
         print(f"chat_history: ------------------------------- {chat_history}")
         try:
             if role == "user":
@@ -546,11 +544,8 @@ async def main(message: cl.Message):
                 chat_history.append({"role": "user", "content": user_text})
                 chat_history.append({"role": "assistant", "content": result})
                 result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=START_SERVICE_API)
-                
-                await msg.send()
             else:
                 await msg.stream_token("暂未开通")
-            await msg.send()
         except Exception as e:
             import traceback
             error_msg = f"处理请求时发生错误: {str(e)}\n{traceback.format_exc()}"

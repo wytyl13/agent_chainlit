@@ -65,7 +65,8 @@ class FoodService:
                 "nutrition": "高蛋白、维生素C",
                 "rating": "4.8",
                 "availability": "有货",
-                "description": "经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香"
+                "description": "经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香",
+                "url": f"{SOURCE_API_PREFIX}/gongbao.jpg"
             },
             {
                 "dish_id": "002", 
@@ -76,7 +77,8 @@ class FoodService:
                 "nutrition": "高蛋白、膳食纤维",
                 "rating": "4.6",
                 "availability": "有货",
-                "description": "淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富"
+                "description": "淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富",
+                "url": f"{SOURCE_API_PREFIX}/hongshaoshizitou.jpg"
             },
             {
                 "dish_id": "003",
@@ -87,8 +89,69 @@ class FoodService:
                 "nutrition": "高蛋白、低脂肪、DHA",
                 "rating": "4.9",
                 "availability": "缺货",
-                "description": "粤式经典，鱼肉鲜嫩，保持原汁原味"
+                "description": "粤式经典，鱼肉鲜嫩，保持原汁原味",
+                "url": f"{SOURCE_API_PREFIX}/qingzhengluyu.jpg"
             },
+            {
+                "dish_id": "004",
+                "dish_name": "麻婆豆腐",
+                "category": "川菜",
+                "price": "¥18",
+                "ingredients": "嫩豆腐、牛肉末、豆瓣酱、花椒",
+                "nutrition": "植物蛋白、钙质、维生素",
+                "rating": "4.7",
+                "availability": "有货",
+                "description": "川菜经典，麻辣鲜香，豆腐嫩滑入味",
+                "url": f"{SOURCE_API_PREFIX}/mapodoufu.jpg"
+            },
+            {
+                "dish_id": "005",
+                "dish_name": "糖醋排骨",
+                "category": "家常菜",
+                "price": "¥32",
+                "ingredients": "猪排骨、番茄酱、糖、醋、生抽",
+                "nutrition": "高蛋白、胶原蛋白、钙质",
+                "rating": "4.8",
+                "availability": "有货",
+                "description": "酸甜可口，色泽红亮，老少皆宜的经典菜品",
+                "url": f"{SOURCE_API_PREFIX}/tangcupaigu.jpg"
+            },
+            {
+                "dish_id": "006",
+                "dish_name": "蒜蓉西兰花",
+                "category": "素菜",
+                "price": "¥15",
+                "ingredients": "新鲜西兰花、大蒜、蚝油",
+                "nutrition": "维生素C、膳食纤维、叶酸",
+                "rating": "4.5",
+                "availability": "有货",
+                "description": "清淡健康，营养丰富，蒜香浓郁",
+                "url": f"{SOURCE_API_PREFIX}/suanrongxilanhua.jpg"
+            },
+            {
+                "dish_id": "007",
+                "dish_name": "回锅肉",
+                "category": "川菜",
+                "price": "¥26",
+                "ingredients": "五花肉、青椒、豆瓣酱、甜面酱",
+                "nutrition": "蛋白质、脂肪、维生素",
+                "rating": "4.6",
+                "availability": "缺货",
+                "description": "川菜之首，肥而不腻，香辣下饭",
+                "url": f"{SOURCE_API_PREFIX}/huiguorou.jpg"
+            },
+            {
+                "dish_id": "008",
+                "dish_name": "西红柿鸡蛋",
+                "category": "家常菜",
+                "price": "¥12",
+                "ingredients": "新鲜西红柿、鸡蛋、糖、盐",
+                "nutrition": "优质蛋白、番茄红素、维生素",
+                "rating": "4.9",
+                "availability": "有货",
+                "description": "国民家常菜，酸甜开胃，营养均衡",
+                "url": f"{SOURCE_API_PREFIX}/xihongshijidan.jpg"
+            }
         ]
             
 
@@ -161,7 +224,7 @@ class FoodService:
         if type == "ORDER":
             dish_info = None
             for item in self.food_data_list:
-                if item["dish_name"] == content:
+                if item["dish_name"] == content or item["dish_name"] in content:
                     dish_info = item
             order_id = uuid.uuid4().hex
             dish_name = dish_info["dish_name"]

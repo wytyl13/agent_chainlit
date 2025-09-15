@@ -281,6 +281,30 @@ class FileServer:
                             "Content-Security-Policy": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'; font-src *;",
                         }
                     )
+                    
+                elif file_full_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']:
+                    from fastapi import Response
+                
+                    # 读取图片文件内容
+                    with open(file_full_path, 'rb') as f:
+                        image_content = f.read()
+                    
+                    return Response(
+                        content=image_content,
+                        media_type=mime_type,
+                        headers={
+                            "Access-Control-Allow-Origin": "*",
+                            "Cache-Control": "public, max-age=3600",  # 缓存1小时
+                        }
+                    )
+                
+                # 其他文件类型使用FileResponse下载
+                else:
+                    return FileResponse(
+                        path=str(file_full_path),
+                        media_type=mime_type,
+                        filename=file_full_path.name
+                    )
             except Exception as e:
                 return JSONResponse(
                     status_code=500,
@@ -288,50 +312,50 @@ class FileServer:
                 )
         
         
-        @app.get("/api/files/download/{file_path:path}")
-        async def download_file_(file_path: str):
-            """下载指定文件"""
-            try:
-                # 对路径进行URL解码，处理中文文件名
-                decoded_file_path = unquote(file_path)
-                file_full_path = self.root_directory / decoded_file_path
+        # @app.get("/api/files/download/{file_path:path}")
+        # async def download_file_(file_path: str):
+        #     """下载指定文件"""
+        #     try:
+        #         # 对路径进行URL解码，处理中文文件名
+        #         decoded_file_path = unquote(file_path)
+        #         file_full_path = self.root_directory / decoded_file_path
                 
-                # 安全检查：确保文件在根目录内
-                if not str(file_full_path.resolve()).startswith(str(self.root_directory.resolve())):
-                    return JSONResponse(
-                        status_code=400,
-                        content={"success": False, "message": f"访问被拒绝！", "timestamp": datetime.now().isoformat()}
-                    )
+        #         # 安全检查：确保文件在根目录内
+        #         if not str(file_full_path.resolve()).startswith(str(self.root_directory.resolve())):
+        #             return JSONResponse(
+        #                 status_code=400,
+        #                 content={"success": False, "message": f"访问被拒绝！", "timestamp": datetime.now().isoformat()}
+        #             )
                 
-                if not file_full_path.exists():
-                    return JSONResponse(
-                        status_code=400,
-                        content={"success": False, "message": f"文件不存在！", "timestamp": datetime.now().isoformat()}
-                    )
+        #         if not file_full_path.exists():
+        #             return JSONResponse(
+        #                 status_code=400,
+        #                 content={"success": False, "message": f"文件不存在！", "timestamp": datetime.now().isoformat()}
+        #             )
                 
-                if not file_full_path.is_file():
-                    return JSONResponse(
-                        status_code=400,
-                        content={"success": False, "message": f"指定路径不是文件", "timestamp": datetime.now().isoformat()}
-                    )
+        #         if not file_full_path.is_file():
+        #             return JSONResponse(
+        #                 status_code=400,
+        #                 content={"success": False, "message": f"指定路径不是文件", "timestamp": datetime.now().isoformat()}
+        #             )
                 
-                # 获取文件MIME类型
-                mime_type, _ = mimetypes.guess_type(str(file_full_path))
-                if mime_type is None:
-                    mime_type = "application/octet-stream"
+        #         # 获取文件MIME类型
+        #         mime_type, _ = mimetypes.guess_type(str(file_full_path))
+        #         if mime_type is None:
+        #             mime_type = "application/octet-stream"
                 
-                self.logger.info(f"下载文件: {decoded_file_path}")
+        #         self.logger.info(f"下载文件: {decoded_file_path}")
                 
-                return FileResponse(
-                    path=str(file_full_path),
-                    media_type=mime_type,
-                    filename=file_full_path.name
-                )
-            except Exception as e:
-                return JSONResponse(
-                    status_code=500,
-                    content={"success": False, "message": f"下载文件失败: {str(e)}", "timestamp": datetime.now().isoformat()}
-                )
+        #         return FileResponse(
+        #             path=str(file_full_path),
+        #             media_type=mime_type,
+        #             filename=file_full_path.name
+        #         )
+        #     except Exception as e:
+        #         return JSONResponse(
+        #             status_code=500,
+        #             content={"success": False, "message": f"下载文件失败: {str(e)}", "timestamp": datetime.now().isoformat()}
+        #         )
                 
 
 def create_app():
