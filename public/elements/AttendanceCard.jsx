@@ -1,7 +1,45 @@
-// public/elements/AttendanceCard.jsx
-import React from 'react';
+export default function AttendanceCard() {
+  // props 是全局注入的，不需要作为参数传递
+  console.log('=== AttendanceCard 调试信息 ===');
+  console.log('全局 props:', props);
+  console.log('props 类型:', typeof props);
+  console.log('props 是否为数组:', Array.isArray(props));
+  
+  // 尝试获取出勤数据
+  let attendanceData = {};
+  
+  if (Array.isArray(props) && props.length > 0) {
+    // 如果 props 是数组，取第一个元素
+    attendanceData = props[0];
+  } else if (props && typeof props === 'object' && !Array.isArray(props)) {
+    // 如果 props 是对象
+    if (props.data && Array.isArray(props.data) && props.data.length > 0) {
+      // 如果有 data 数组，取第一个
+      attendanceData = props.data[0];
+    } else if (props.studentId || props.studentName) {
+      // 如果 props 直接包含学生信息
+      attendanceData = props;
+    }
+  }
 
-const AttendanceCard = ({ studentId, courseId, studentName, month, stats, records }) => {
+  console.log('最终处理的 attendanceData:', attendanceData);
+  
+  // 解构数据，提供默认值
+  const {
+    studentId = '未知',
+    courseId = '未知',
+    studentName = '未知学员',
+    month = '未知月份',
+    stats = [{ present: 0, late: 0, absent: 0 }],
+    records = []
+  } = attendanceData;
+
+  console.log('解构后的数据:', { studentId, courseId, studentName, month, stats, records });
+
+  // 获取统计数据（stats是数组，取第一个元素）
+  const statsData = Array.isArray(stats) && stats.length > 0 ? stats[0] : { present: 0, late: 0, absent: 0 };
+  console.log('statsData:', statsData);
+
   // 获取状态样式
   const getStatusStyle = (status) => {
     const styles = {
@@ -25,23 +63,61 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
   };
 
   const handleRecordClick = (record) => {
-    // 发送点击事件到后端
-    window.chainlit.emit('record_clicked', {
-      record,
-      studentId,
-      courseId
+    console.log('点击记录:', record);
+    // 使用 Chainlit 提供的 callAction API
+    callAction({
+      name: 'record_clicked',
+      payload: {
+        record,
+        studentId,
+        courseId
+      }
     });
   };
 
   const handleStatsClick = (statType, value) => {
-    // 发送统计数据点击事件
-    window.chainlit.emit('stats_clicked', {
-      statType,
-      value,
-      studentId,
-      month
+    console.log('点击统计:', statType, value);
+    // 使用 Chainlit 提供的 callAction API
+    callAction({
+      name: 'stats_clicked',
+      payload: {
+        statType,
+        value,
+        studentId,
+        month
+      }
     });
   };
+
+  // 详细的调试信息显示
+  if (!attendanceData || Object.keys(attendanceData).length === 0 || !studentName || studentName === '未知学员') {
+    return (
+      <div style={{
+        maxWidth: '400px',
+        margin: '20px 0',
+        padding: '20px',
+        background: '#fff3cd',
+        borderRadius: '16px',
+        border: '2px solid #ffeaa7'
+      }}>
+        <div style={{ color: '#d63031', marginBottom: '10px', fontSize: '14px', fontWeight: 'bold' }}>
+          🐛 调试信息：
+        </div>
+        <div style={{ fontSize: '11px', color: '#666', marginBottom: '10px', fontFamily: 'monospace', background: '#f8f9fa', padding: '8px', borderRadius: '4px' }}>
+          <div><strong>全局 props:</strong></div>
+          <pre>{JSON.stringify(props, null, 2)}</pre>
+        </div>
+        <div style={{ fontSize: '11px', color: '#666', marginBottom: '10px', fontFamily: 'monospace' }}>
+          <div><strong>props 类型:</strong> {typeof props}</div>
+          <div><strong>props 是否为数组:</strong> {Array.isArray(props).toString()}</div>
+          <div><strong>attendanceData:</strong> {JSON.stringify(attendanceData)}</div>
+        </div>
+        <div style={{ textAlign: 'center', color: '#666', marginTop: '10px' }}>
+          暂无出勤数据
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -53,6 +129,17 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
       boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
+      {/* 成功状态的调试信息 */}
+      <div style={{
+        background: '#d4edda',
+        padding: '8px 16px',
+        fontSize: '11px',
+        color: '#155724',
+        borderBottom: '1px solid #c3e6cb'
+      }}>
+        <strong>✅ 成功:</strong> 学员 {studentName}, 统计 {JSON.stringify(statsData)}, 记录 {records.length} 条
+      </div>
+
       {/* 卡片头部 */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.9)',
@@ -134,7 +221,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
           }}>
             <div 
               style={{ flex: 1, cursor: 'pointer' }}
-              onClick={() => handleStatsClick('present', stats.present)}
+              onClick={() => handleStatsClick('present', statsData.present)}
             >
               <div style={{
                 fontSize: '24px',
@@ -142,7 +229,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
                 marginBottom: '4px',
                 color: '#4caf50'
               }}>
-                {stats.present}
+                {statsData.present}
               </div>
               <div style={{
                 fontSize: '12px',
@@ -151,7 +238,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
             </div>
             <div 
               style={{ flex: 1, cursor: 'pointer' }}
-              onClick={() => handleStatsClick('late', stats.late)}
+              onClick={() => handleStatsClick('late', statsData.late)}
             >
               <div style={{
                 fontSize: '24px',
@@ -159,7 +246,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
                 marginBottom: '4px',
                 color: '#ff9800'
               }}>
-                {stats.late}
+                {statsData.late}
               </div>
               <div style={{
                 fontSize: '12px',
@@ -168,7 +255,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
             </div>
             <div 
               style={{ flex: 1, cursor: 'pointer' }}
-              onClick={() => handleStatsClick('absent', stats.absent)}
+              onClick={() => handleStatsClick('absent', statsData.absent)}
             >
               <div style={{
                 fontSize: '24px',
@@ -176,7 +263,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
                 marginBottom: '4px',
                 color: '#f44336'
               }}>
-                {stats.absent}
+                {statsData.absent}
               </div>
               <div style={{
                 fontSize: '12px',
@@ -217,11 +304,7 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
                     background: '#f8f9fa',
                     borderLeft: statusStyle.border,
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    ':hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                    }
+                    transition: 'all 0.2s ease'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-1px)';
@@ -280,6 +363,4 @@ const AttendanceCard = ({ studentId, courseId, studentName, month, stats, record
       </div>
     </div>
   );
-};
-
-export default AttendanceCard;
+}

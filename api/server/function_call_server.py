@@ -153,7 +153,8 @@ class FunctionCallServer:
             result = ''.join(chunks)
             self.logger.info(result)
         except Exception as e:
-            result = f"fail to exec function call api, {str(e)}"
+            import traceback
+            result = f"fail to exec function call api, {str(e)}\n{traceback.format_exc()}"
             for item in result:
                 yield item
                 
@@ -186,7 +187,8 @@ class FunctionCallServer:
                 content={"success": True, "data": result, "timestamp": datetime.now().isoformat()}
             )
         except Exception as e:
-            result = f"fail to exec function call api, {str(e)}"
+            import traceback
+            result = f"fail to exec function call api, {str(e)}\n{traceback.format_exc()}"
             return JSONResponse(
                 status_code=500,
                 content={"success": False, "message": result, "data": None, "timestamp": datetime.now().isoformat()}

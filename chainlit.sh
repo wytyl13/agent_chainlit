@@ -27,7 +27,7 @@ else
     CONDA_ENV_PATH='/work/soft/anaconda3/bin/'
 fi
 
-mkdir .files
+
 if [ -n "$1" ]; then
     PROJECT_ROOT="$1"
 else
@@ -67,4 +67,6 @@ fi
 echo "日志文件路径: $LOG_FILE"
 cd "$PROJECT_ROOT" || { echo "无法切换到项目目录: $PROJECT_ROOT"; exit 1; }
 nohup chainlit run chainlit.py --host 0.0.0.0 --port $CHAINLIT_PORT --ssl-cert $PROJECT_ROOT/cert/shunxikj.com.crt --ssl-key $PROJECT_ROOT/cert/shunxikj.com.key --headless > "$LOG_FILE" 2>&1 &
+sleep 5
+mkdir .files
 echo "检测脚本已在后台运行，输出日志位于: $LOG_FILE"

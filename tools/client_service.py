@@ -15,10 +15,13 @@ from typing import (
 )
 
 from pydantic import Field, BaseModel
-
+import json
 
 from agent.base.base_tool import tool
+from tools.utils import Utils
 
+
+utils = Utils()
 
 
 class ClientServiceSchema(BaseModel):
@@ -93,56 +96,6 @@ class ClientService:
         return markdown_table
 
 
-    
-    def convert_to_column_format(self, data_list, key_mapping=None):
-        """
-        将对象数组格式转换为列格式数据，可选择性应用字段映射
-        
-        Args:
-            data_list (list): 对象数组，每个字典代表一行数据
-            key_mapping (dict, optional): 字段名映射字典。如果不传递则保持原字段名
-        
-        Returns:
-            dict: 列格式的字典，键为字段名，值为对应的数据列表
-        
-        Examples:
-            >>> # 不使用映射
-            >>> data_list = [{"name": "Alice", "age": 25}, {"name": "Bob", "age": 30}]
-            >>> result = convert_to_column_format(data_list)
-            >>> print(result)
-            {"name": ["Alice", "Bob"], "age": [25, 30]}
-            
-            >>> # 使用映射
-            >>> mapping = {"name": "姓名", "age": "年龄"}
-            >>> result = convert_to_column_format(data_list, mapping)
-            >>> print(result)
-            {"姓名": ["Alice", "Bob"], "年龄": [25, 30]}
-        """
-        if not data_list:
-            return {}
-        
-        # 从第一个对象获取所有字段名
-        fields = list(data_list[0].keys())
-        
-        # 创建结果字典
-        result = {}
-        
-        for field in fields:
-            # 提取该字段在所有对象中的值
-            values = [item.get(field, "") for item in data_list]
-            
-            # 如果提供了映射，使用映射后的字段名，否则使用原字段名
-            if key_mapping and field in key_mapping:
-                field_name = key_mapping[field]
-            else:
-                field_name = field
-            
-            # 存储到结果中
-            result[field_name] = values
-        
-        return result
-
-
     async def execute(
         self, 
         type,
@@ -168,6 +121,7 @@ class ClientService:
                 "description": "活动描述",
                 "contact": "联系方式"
             }
+
 
             # 社区活动数据
             data_list = [
@@ -233,31 +187,119 @@ class ClientService:
                 }
             ]
             
+            data_list = utils.convert_to_chinese_fields(data_list=data_list, key_mapping=key_mapping)
             
-            data_list = [{"姓名": "张三", "性别": "男"}, {"姓名": "张三", "性别": "男"}, {"姓名": "张三", "性别": "男"}]
+
             
-            import json
-            # data_list = data = {
-            #     "活动编号": ["AC001", "AC002", "AC003", "AC004", "AC005"],
-            #     "活动名称": ["晨练太极拳", "书法交流会", "健康义诊活动", "老年手机使用培训", "社区广场舞比赛"],
-            #     "活动类型": ["健身运动", "文化艺术", "健康医疗", "技能学习", "文娱活动"],
-            #     "主办方": ["社区文体中心", "社区老年大学", "社区卫生服务中心", "社区志愿者服务队", "社区居委会"],
-            #     "活动日期": ["2024-12-09", "2024-12-10", "2024-12-11", "2024-12-12", "2024-12-13"],
-            #     "活动时间": ["07:00-08:00", "14:00-16:00", "09:00-11:30", "15:00-16:30", "19:00-21:00"],
-            #     "活动地点": ["社区广场", "活动中心二楼", "社区卫生站", "社区服务大厅", "社区广场"],
-            #     "参与人数限制": ["不限", "20人", "50人", "15人", "不限"],
-            #     "当前报名人数": ["25人", "15人", "32人", "12人", "60人"],
-            #     "活动状态": ["进行中", "可报名", "可报名", "可报名", "可报名"],
-            #     "活动费用": ["免费", "免费", "免费", "免费", "免费"],
-            #     "活动描述": ["每日晨练，强身健体，欢迎新老朋友参加", "书法爱好者交流切磋，现场指导", "免费测血压血糖，健康咨询，常见病预防知识讲座", "教授智能手机基本操作，微信使用，网上购物等", "各个广场舞队伍展示交流，设有奖品"],
-            #     "联系方式": ["张教练 138****1234", "李老师 139****5678", "王医生 137****9012", "小王 135****3456", "张主任 136****7890"],
-            # }
-            data_list = self.convert_to_column_format(data_list=data_list)
+            food_data_list = [
+                {
+                    "dish_id": "001",
+                    "dish_name": "宫保鸡丁",
+                    "category": "川菜",
+                    "price": "¥28",
+                    "ingredients": "鸡肉、花生、青椒、红椒",
+                    "nutrition": "高蛋白、维生素C",
+                    "rating": "4.8",
+                    "availability": "有货",
+                    "description": "经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香"
+                },
+                {
+                    "dish_id": "002", 
+                    "dish_name": "红烧狮子头",
+                    "category": "淮扬菜",
+                    "price": "¥35",
+                    "ingredients": "猪肉、马蹄、冬菇、青菜",
+                    "nutrition": "高蛋白、膳食纤维",
+                    "rating": "4.6",
+                    "availability": "有货",
+                    "description": "淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富"
+                },
+                {
+                    "dish_id": "003",
+                    "dish_name": "清蒸鲈鱼",
+                    "category": "粤菜",
+                    "price": "¥42",
+                    "ingredients": "新鲜鲈鱼、蒸鱼豉油、葱丝",
+                    "nutrition": "高蛋白、低脂肪、DHA",
+                    "rating": "4.9",
+                    "availability": "缺货",
+                    "description": "粤式经典，鱼肉鲜嫩，保持原汁原味"
+                }
+            ]
+            
+            
+            attendance_data = [
+                {
+                    "studentId": "ST001",
+                    "courseId": "CS001",
+                    "studentName": "张大爷",
+                    "month": "2024年12月",
+                    "stats": [{
+                        "present": 15,
+                        "late": 2,
+                        "absent": 1
+                    }],
+                    "records": [
+                        {
+                            "courseName": "太极拳基础班",
+                            "date": "2024-12-02",
+                            "day": "周一",
+                            "time": "08:55",
+                            "status": "已签到"
+                        },
+                        {
+                            "courseName": "太极拳基础班",
+                            "date": "2024-12-04",
+                            "day": "周三", 
+                            "time": "09:10",
+                            "status": "迟到"
+                        },
+                        {
+                            "courseName": "毛笔书法入门",
+                            "date": "2024-12-06",
+                            "day": "周五",
+                            "time": "13:58",
+                            "status": "已签到"
+                        },
+                        {
+                            "courseName": "太极拳基础班",
+                            "date": "2025-09-06",
+                            "day": "周六",
+                            "time": "",
+                            "status": "缺勤"
+                        }
+                    ]
+                }
+            ]
             data_list_str = json.dumps(data_list, ensure_ascii=False, indent=2)
+            food_data_list_str = json.dumps(food_data_list, ensure_ascii=False, indent=2)
+            attendance_data_str = json.dumps(attendance_data, ensure_ascii=False, indent=2)
             # result = self.format_table_data_markdown(type=content, key_mapping=key_mapping, data_list=data_list)
-            result = f"我是谁啊hi额发货IE发色鹅湖黑粉妇委会覅黑粉份额时<data_frame>{data_list_str}</data_frame><confirm>请确认您的订单</confirm><image>http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960</image><card>https://mastergo.com/goto/MEC86QId?page_id=M&file=170981350958046</card>"
             
             
+            
+            # 测试返回案例
+            # 1 标签形式
+            # 2 标签中的name属性为对应的react页面或者前端的页面
+            # 3 标签中的content属性为搭配卡片、确认、图片、dataframe等格式的首行字符串输出
+            # 4 标签包裹的数据一般为图片绝对路径、URL、json数据（需要在页面中展示的）
+            
+            result = f"""我是谁啊hi额发货IE发色鹅湖黑粉妇委会覅黑粉份额时
+            <data_frame content="">{data_list_str}</data_frame><confirm>请确认您的订单？</confirm>
+            <image content="张秀英">http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960</image>
+            <card name="MenuCards" content=f"✅ 成功: 找到 {len(food_data_list_str)}道菜品">{food_data_list_str}</card>
+            <card name="AttendanceCard" content="社区活动清单">{attendance_data_str}</card>"""
+            
+            # 如果和前端对接使用的是标签字符串格式，那么直接返回result即可
+            
+            try:
+                # 如果前端对接的时候要求使用json数据格式返回，这里将上述字符串标签数据格式化为json格式数据返回即可，注意使用json.dumps返回字符串格式的json
+                result = json.dumps(utils.parse_content(result), 
+                   ensure_ascii=False,  # 支持中文
+                   indent=2) 
+                print(f"result:---------------------------------------------- {result}")
+            except Exception as e:
+                raise ValueError(f"Failed to exec parse content!") from e
             
             
         if type == "HEALTH_STATUS":

@@ -20,12 +20,13 @@ import io
 from typing import (
     Dict
 )
-
+import json
+from tools.utils import Utils
 
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 from chainlit.data.storage_clients.azure import AzureStorageClient
 
-
+utils = Utils()
 ROOT_DIRECTORY = Path(__file__).parent
 
 # 添加项目路径
@@ -81,12 +82,6 @@ def extract_and_clean_tool_info(text):
     clean_text = re.sub(clean_pattern, '', text)
     
     return clean_text, tool_name
-
-
-
-# def hash_password(password):
-#     """密码哈希"""
-#     return hashlib.sha256(password.encode()).hexdigest()
 
 
 # 功能菜单----------------------------------------------------------------------------------------------
@@ -221,9 +216,11 @@ def create_chat_settings(user_role):
 async def on_publish_notice(action):
     await cl.Message(content="📢 请输入您要发布的通告内容：").send()
 
+
 @cl.action_callback("manage_services") 
 async def on_manage_services(action):
     await cl.Message(content="🛠️ 服务管理功能已启动，请选择要管理的服务类型：\n1. 医疗服务\n2. 生活服务\n3. 娱乐服务").send()
+
 
 @cl.action_callback("view_statistics")
 async def on_view_statistics(action):
@@ -231,13 +228,16 @@ async def on_view_statistics(action):
     # 这里可以调用你的数据统计功能
     # 例如：生成图表、调用数据中心等
 
+
 @cl.action_callback("user_management")
 async def on_user_management(action):
     await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
 
+
 @cl.action_callback("system_settings")
 async def on_system_settings(action):
     await cl.Message(content="⚙️ 系统设置：\n1. 基础设置\n2. 安全设置\n3. 通知设置\n4. 备份设置").send()
+
 
 @cl.action_callback("service_inquiry")
 async def on_service_inquiry(action):
@@ -263,7 +263,6 @@ async def on_subsidy_inquiry(action):
 async def on_community_info(action):
     await cl.Message(content="🏘️社区信息：\n1. 社区公告\n2. 活动安排\n3. 设施状态\n4. 联系方式").send()
 # 功能菜单----------------------------------------------------------------------------------------------
-
 
 
 @cl.data_layer
@@ -477,7 +476,6 @@ async def show_confirmation(content="确认此操作吗？"):
         ).send()
 
 
-
 @cl.on_message  
 async def main(message: cl.Message):
     """
@@ -578,56 +576,21 @@ async def main(message: cl.Message):
                 print("================================")
                 print(result)
                 print("================================")
-                segments = tag_process.parse_content(content=result)
+                segments = None
+                try:
+                    segments = json.loads(result)
+                    print("接受到json格式返回数据")
+                except Exception as e:
+                    print("接受到字符串格式返回数据")
+                    segments = utils.parse_content(content=result)
                 result_seg = await tag_process.process_segments(segments=segments)
-                
                 # for item in result:
                 #     # <confirm>请确定你的订单</confirm>
                 #     # <card>JSON数据</card>
                 #     # <image></image>
                 #     await msg.stream_token(item)
-                match = re.search(r'<image>(.*?)</image>', result)
                 match_zhuyunying = re.search(r'<zhuyunying>(.*?)</zhuyunying>', result)
-                match_confirm = re.search(r'<confirm>(.*?)</confirm>', result)
-                match_card = re.search(r'<card>(.*?)</card>', result)
                 # 添加调试信息
-                # match_dataframe = re.search(r'<data_frame>(.*?)</data_frame>', result, re.DOTALL)
-                # if match_dataframe:
-                #     print(f"匹配到 match_dataframe: {match_dataframe.group(1)}")
-                #     import pandas as pd
-                #     import json
-                #     dataframe_content = match_dataframe.group(1).strip()
-                #     data_list = json.loads(dataframe_content)
-                #     df = pd.DataFrame(data_list)
-                #     elements = [cl.Dataframe(data=df, display="inline", name="Dataframe")]
-                #     await cl.Message(content="This message has a Dataframe", elements=elements).send()
-                    
-                if match_card:
-                    print(f"匹配到 match_card: {match_card.group(1)}")
-                    card_content = match_card.group(1).strip()
-                    await create_menu_cards()  # 调用新的函数
-                
-                if match_confirm:
-                    print(f"匹配到 confirm: {match_confirm.group(1)}")
-                    # print(match_confirm.group(1).strip())
-                    confirm_content = match_confirm.group(1).strip()
-                    # await show_confirmation_popup(confirm_content)
-                    # 创建卡片
-                    card = cl.Card(
-                        title="产品信息",
-                        content="这是一个产品的详细信息卡片",
-                        image="http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960",  # 可选的图片
-                        actions=[
-                            cl.Action(name="view_details", value="detail_1", label="查看详情"),
-                            cl.Action(name="buy_now", value="buy_1", label="立即购买")
-                        ]
-                    )
-                    
-                    await cl.Message(
-                        content="以下是推荐的产品：",
-                        elements=[card]
-                    ).send()
-                    
                 if match_zhuyunying:
                     # 数据
                     sites = ["幸福站", "和谐站", "康乐站"]
@@ -667,39 +630,18 @@ async def main(message: cl.Message):
                         elements=[cl.Plotly(name="chart", figure=fig, display="inline")]
                     ).send()
                 
-                if match:
-                    # 找到完整标签
-                    image_path = match.group(1).strip()
-                    
-                    print(f"找到图像: {image_path}")
-                    
-                    # 显示图像
-                    try:
-                        import os
-                        if os.path.exists(image_path):
-                            image = cl.Image(
-                                name="图片",
-                                display="inline",
-                                path=image_path
-                            )
-                            await cl.Message(content="🖼️", elements=[image]).send()
-                        else:
-                            await cl.Message(content=f"❌ 图片不存在: {image_path}").send()
-                    except Exception as e:
-                        await cl.Message(content=f"❌ 错误: {str(e)}").send()
-                    
                 await msg.send()
             else:
                 await msg.stream_token("暂未开通")
             await msg.send()
         except Exception as e:
-            error_msg = f"处理请求时发生错误: {str(e)}"
+            import traceback
+            error_msg = f"处理请求时发生错误: {str(e)}\n{traceback.format_exc()}"
             await cl.Message(content=error_msg).send()
         finally:
             # 可以在这里添加会话提示功能。每次对话回复完成以后都添加
             # 将会话提示以按钮的形式输出
             pass
-
 
 
 @cl.on_chat_start
