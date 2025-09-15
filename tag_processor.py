@@ -14,6 +14,11 @@ import chainlit as cl
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import os
+from typing import (
+    List,
+    Optional 
+)
+
 
 from tools.utils import Utils
 from tools.utils import TAG_PATTERNS
@@ -29,8 +34,7 @@ class TagProcessor:
         self.tag_patterns = TAG_PATTERNS
 
 
-
-    async def process_data_frame_tag(self, content, attributes=None):
+    async def process_data_frame_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """处理data_frame标签"""
         try:
             message_content = attributes.get('content') if attributes else '📊 **数据表格**'
@@ -48,7 +52,7 @@ class TagProcessor:
             return False
 
 
-    async def process_card_tag(self, content, attributes=None):
+    async def process_card_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """处理card标签"""
         try:
             card_name = attributes.get('name', 'DefaultCard') if attributes else 'DefaultCard'
@@ -75,7 +79,7 @@ class TagProcessor:
             return False
 
 
-    async def process_confirm_tag(self, content, attributes=None):
+    async def process_confirm_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """处理confirm标签"""
         try:
             actions = [
@@ -89,20 +93,46 @@ class TagProcessor:
                 content=f"⚠️ **操作确认**\n\n{content}",
                 actions=actions
             ).send()
-        
+            print("whoami-----------------------------------------------------------------------")
+            print("whoami-----------------------------------------------------------------------")
             if res and res.get("payload").get("value") == "确认":
                 # 调用确认接口
                 await cl.Message(
                     content="确认!",
                 ).send()
+                
+                param_dict = {
+                    "question": "确认!",
+                    "messages": chat_history
+                }
+                print(f"param_dict: --------------------------------- {param_dict}")
+                print(f"function_call_url: --------------------------------- {function_call_url}")
+                # function_call
+                result = utils.request_url(
+                    url=function_call_url,
+                    param_dict=param_dict
+                )
+                print("================================")
+                print(result)
+                print("================================")
+                segments = None
+                try:
+                    segments = json.loads(result)
+                    print("接受到json格式返回数据")
+                except Exception as e:
+                    print("接受到字符串格式返回数据")
+                    segments = utils.parse_content(content=result)
+                result_seg = await self.process_segments(segments=segments, chat_history=chat_history, function_call_url=function_call_url)
+                
             print("✅ Confirm处理成功")
             return True
         except Exception as e:
-            print(f"❌ Confirm处理失败: {e}")
+            import traceback
+            print(f"❌ Confirm处理失败: {str(e)}\n{traceback.format_exc()}")
             return False
 
 
-    async def process_zhuyunying_tag(self, content, attributes=None):
+    async def process_zhuyunying_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """处理zhuyunying标签"""
         try:
             # 数据
@@ -150,24 +180,36 @@ class TagProcessor:
             return False
 
 
-    async def process_preview_tag(self, content, attributes=None):
-        iframe_html = f"""
-        <iframe 
-            src="{content}" 
-            width="100%" 
-            height="600px" 
-            frameborder="0"
-            style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-        </iframe>
-        """
-        message_content = attributes.get('content') if attributes else ''
-        await cl.Message(
-            content=f"{message_content}\n网页预览：",
-            elements=[cl.Html(content=iframe_html)]
-        ).send()
+    async def process_preview_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+        try:
+            message_content = attributes.get('content') if attributes else ''
+            name = attributes.get('name') if 'name' in attributes else 'WebPreviewCard'
+            title = attributes.get('title') if 'title' in attributes else '订单详情'
+            content = message_content if content is None or content == "" else content
+            
+            # # 创建自定义元素
+            data = [
+                {"title": "订单", "link": content, "image": "", "content": ""}
+            ]
+            
+            menu_element = cl.CustomElement(
+                name=name,
+                props={"data": data}
+            )
+    
+            await cl.Message(
+                content=message_content,
+                elements=[menu_element]
+            ).send()
+            return True
+        except Exception as e:
+            import traceback
+            error_info = (f"标签处理失败{str(e)}\n{traceback.format_exc()}")
+            print(error_info)
+            return False
 
 
-    async def process_image_tag(self, content, attributes=None):
+    async def process_image_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """处理image标签"""
         try:
             image_path = content.strip()
@@ -203,7 +245,7 @@ class TagProcessor:
             return False
 
 
-    async def process_tag(self, tag_name, content, attributes):
+    async def process_tag(self, tag_name, content, attributes, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """根据标签名称处理对应的标签"""
         handler_map = {
             'data_frame': self.process_data_frame_tag,
@@ -216,17 +258,17 @@ class TagProcessor:
         
         handler = handler_map.get(tag_name)
         if handler:
-            return await handler(content, attributes)
+            return await handler(content, attributes, chat_history, function_call_url)
         else:
             print(f"❌ 未知标签类型: {tag_name}")
             return False
 
 
-    async def process_segments(self, segments):
+    async def process_segments(self, segments, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """按顺序处理所有分段"""
         text_msg = None  # 用于累积文本消息
         print("============================")
-        print(segments)
+        print("segments: --------------------- {segments}")
         print("============================")
         for i, segment in enumerate(segments):
             print(f"分段{i+1}: {segment['type']}", 
@@ -249,7 +291,9 @@ class TagProcessor:
                 success = await self.process_tag(
                     segment['tag_name'], 
                     segment['content'], 
-                    segment.get('attributes')  # 新增传递attributes
+                    segment.get('attributes'),  # 新增传递attributes
+                    chat_history,
+                    function_call_url
                 )
                 if not success:
                     import traceback

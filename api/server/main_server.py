@@ -15,7 +15,7 @@ from api.server.community_real_time_data_server import CommunityRealTimeDataServ
 from api.server.user_data_server import UserDataServer
 from api.server.function_call_server import FunctionCallServer
 from agent.tool.enhance_retrieval import EnhanceRetrieval
-
+from api.server.file_server import FileServer
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
@@ -57,6 +57,7 @@ class AeroSenseMainServer:
         self.function_call_server = FunctionCallServer(
             enhance_retrieval=self.enhance_qwen_admin
         )
+        self.file_service = FileServer(str(ROOT_DIRECTORY / "api" / "source"))
         # 设置应用
         self._setup_middleware()
         self._setup_base_routes()
@@ -121,6 +122,8 @@ class AeroSenseMainServer:
         # 注册工具调用服务路由
         self.function_call_server.register_routes(self.app)
 
+        # 注意文件服务路由
+        self.file_service.register_routes(self.app)
 
     def run(
         self, 

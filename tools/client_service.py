@@ -285,7 +285,7 @@ class ClientService:
             # 4 标签包裹的数据一般为图片绝对路径、URL、json数据（需要在页面中展示的）
             
             result = f"""我是谁啊hi额发货IE发色鹅湖黑粉妇委会覅黑粉份额时
-            <data_frame content="">{data_list_str}</data_frame><confirm>请确认您的订单？</confirm>
+            <data_frame content="这是您的表格">{data_list_str}</data_frame><confirm>请确认您的订单？</confirm>
             <image content="张秀英">http://gips3.baidu.com/it/u=3886271102,3123389489&fm=3028&app=3028&f=JPEG&fmt=auto?w=1280&h=960</image>
             <card name="MenuCards" content=f"✅ 成功: 找到 {len(food_data_list_str)}道菜品">{food_data_list_str}</card>
             <card name="AttendanceCard" content="社区活动清单">{attendance_data_str}</card>"""

@@ -236,18 +236,18 @@ query_num: # 检索条目数
 
 
 ## 📚 API文档
-/chat/function_call/start   POST
+https://ai.shunxikj.com:8890/chat/function_call/start   POST
 JSON请求体:
 {
-    "question": "确认",
-    "messages": [
-        {"role": "user", "content": "我要新增一个角色"},
-        {"role": "assistant", "content": "请提供具体的角色名称！"},
-        {"role": "user", "content": "产品经理"},
-        {"role": "assistant", "content": "请提供具体的权限！您可以从如下权限中选择：['服务项目管理', '商品分类管理', '设备类别管理']"},
-        {"role": "user", "content": "服务项目和商品分类"},
-        {"role": "assistant", "content": "<text_value>好的，收到新增：产品经理 * ['服务项目管理', '商品分类管理']。</text_value><confirm>请确认是否操作新增？</confirm>"}
-    ]
+   "question": "确认",
+   "messages": [
+      {"role": "user", "content": "我要新增一个角色"},
+      {"role": "assistant", "content": "请提供具体的角色名称！"},
+      {"role": "user", "content": "产品经理"},
+      {"role": "assistant", "content": "请提供具体的权限！您可以从如下权限中选择：['服务项目管理', '商品分类管理', '设备类别管理']"},
+      {"role": "user", "content": "服务项目和商品分类"},
+      {"role": "assistant", "content": "<text_value>好的，收到新增：产品经理 * ['服务项目管理', '商品分类管理']。</text_value><confirm>请确认是否操作新增？</confirm>"}
+   ]
 }
 
 RESPONSE:

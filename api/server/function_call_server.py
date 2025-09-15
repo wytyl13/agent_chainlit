@@ -50,8 +50,6 @@ food_service = FoodService()
 tools_start = [client_service, order, role, food_service]
 
 
-
-
 class FunctionCallServerRequest(BaseModel):
     question: str = None
     messages: Optional[List[Dict[str, str]]] = None
@@ -60,7 +58,7 @@ class FunctionCallServerRequest(BaseModel):
 
 class FunctionCallServer:
     """OnlyOffice文档编辑器类"""
-    
+
     def __init__(
         self, 
         enhance_retrieval: EnhanceRetrieval = None
@@ -70,7 +68,7 @@ class FunctionCallServer:
         if self.enhance_retrieval is None:
             raise ValueError("llm must not be none!")
 
-        
+
         self.function_call_start = FunctionCall(
             tools = tools_start,
             enhance_llm=self.enhance_retrieval,
@@ -85,50 +83,6 @@ class FunctionCallServer:
         app.post("/chat/function_call/start")(self.function_call_chat_start)
 
 
-    # async def function_call_chat_start(
-    #     self,
-    #     function_call_server_request: FunctionCallServerRequest
-    # ):
-    #     """function call api"""
-    #     try:
-    #         question = function_call_server_request.question
-    #         messages = function_call_server_request.messages
-    #         stream = function_call_server_request.stream
-    #     except Exception as e:
-    #         return JSONResponse(
-    #             status_code=400,
-    #             content={"success": False, "message": f"传参错误！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
-    #         )
-        
-    #     try:
-    #         chunks = []
-    #         async for chunk in self.function_call_start.execute(
-    #             question=question,
-    #             messages=messages,
-    #             tools=tools_start
-    #         ):
-    #             chunks.append(chunk)
-    #             if stream:
-    #                 yield chunk
-    #         result = ''.join(chunks)
-    #         if not stream:
-    #             return JSONResponse(
-    #                 status_code=200,
-    #                 content={"success": True, "data": result, "timestamp": datetime.now().isoformat()}
-    #             )
-    #     except Exception as e:
-    #         result = f"fail to exec function call api, {str(e)}"
-    #         if stream:
-    #             for item in result:
-    #                 yield item
-    #         else:
-    #             return JSONResponse(
-    #                 status_code=500,
-    #                 content={"success": False, "message": result, "data": None, "timestamp": datetime.now().isoformat()}
-    #             )
-                
-                
-                
     async def function_call_chat_start_stream(
         self,
         function_call_server_request: FunctionCallServerRequest
@@ -157,7 +111,7 @@ class FunctionCallServer:
             result = f"fail to exec function call api, {str(e)}\n{traceback.format_exc()}"
             for item in result:
                 yield item
-                
+
 
     async def function_call_chat_start(
         self,
@@ -193,8 +147,8 @@ class FunctionCallServer:
                 status_code=500,
                 content={"success": False, "message": result, "data": None, "timestamp": datetime.now().isoformat()}
             )
-    
-    
+
+
     async def chat(
         self, 
         request: Request
@@ -205,8 +159,7 @@ class FunctionCallServer:
             content={"success": True, "data": "尚未开发", "timestamp": datetime.now().isoformat()}
         )
 
-        
-        
+
     async def health(self):
         """健康检查"""
         return JSONResponse(

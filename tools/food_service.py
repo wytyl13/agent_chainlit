@@ -16,11 +16,18 @@ from typing import (
 
 from pydantic import Field, BaseModel
 import re
+import uuid
+import json
+from datetime import datetime, timedelta
 
 from agent.base.base_tool import tool
+from tools.utils import Utils
+
+SOURCE_STORAGE_PATH = "/work/ai/agent_chainlit/api/source"
+SOURCE_API_PREFIX = "https://ai.shunxikj.com:8890/api/files/download"
 
 
-
+utils = Utils()
 class FoodServiceSchema(BaseModel):
 
     type: str = Field(
@@ -29,7 +36,10 @@ class FoodServiceSchema(BaseModel):
     content: str = Field(
         description="查询的菜品时段信息，预定的某个菜品名称或评价的某个菜品"
     )
-
+    is_ensure: int = Field(
+        default=None,
+        description="用户是否已经明确确认订单：0=首次预定订单（如：我要点餐等，没有向用户明确是否下单），需要向用户确认；1=用户已明确确认，可直接执行该指令。只有当用户明确说出'确认'、'同意'、'是的'等确认词汇时才设为1。"
+    )
 
 @tool
 class FoodService:
@@ -45,53 +55,42 @@ class FoodService:
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.food_data_list = [
+            {
+                "dish_id": "001",
+                "dish_name": "宫保鸡丁",
+                "category": "川菜",
+                "price": "¥28",
+                "ingredients": "鸡肉、花生、青椒、红椒",
+                "nutrition": "高蛋白、维生素C",
+                "rating": "4.8",
+                "availability": "有货",
+                "description": "经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香"
+            },
+            {
+                "dish_id": "002", 
+                "dish_name": "红烧狮子头",
+                "category": "淮扬菜",
+                "price": "¥35",
+                "ingredients": "猪肉、马蹄、冬菇、青菜",
+                "nutrition": "高蛋白、膳食纤维",
+                "rating": "4.6",
+                "availability": "有货",
+                "description": "淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富"
+            },
+            {
+                "dish_id": "003",
+                "dish_name": "清蒸鲈鱼",
+                "category": "粤菜",
+                "price": "¥42",
+                "ingredients": "新鲜鲈鱼、蒸鱼豉油、葱丝",
+                "nutrition": "高蛋白、低脂肪、DHA",
+                "rating": "4.9",
+                "availability": "缺货",
+                "description": "粤式经典，鱼肉鲜嫩，保持原汁原味"
+            },
+        ]
             
-
-
-    def format_table_data_markdown(self, type, key_mapping, data_list):
-        if not data_list:
-            return f"暂无{type}信息"
-        
-        if key_mapping is None:
-            key_mapping = {
-            'id': 'ID',
-            'name': '姓名',
-            'age': '年龄', 
-            'type': '类型',
-            'content': '内容',
-            'create_time': '创建时间',
-            'update_time': '更新时间',
-            'status': '状态',
-            'value': '数值',
-            'object': '项目',
-            'description': '描述'
-        }
-            
-        # 创建表格标题
-        markdown_table = f"### 您好！我已为您查询到{type}的信息：\n\n"
-        first_dict = data_list[0] if data_list else {}
-        available_keys = list(first_dict.keys())
-        
-        # 创建表头
-        headers = [key_mapping.get(key, key) for key in available_keys]
-        markdown_table += "| " + " | ".join(headers) + " |\n"
-        markdown_table += "|" + "|".join(["-" * len(header) for header in headers]) + "|\n"
-        for i, item in enumerate(data_list, 1):
-            row_data = []
-            for key in available_keys:
-                value = item.get(key, '未知')
-                # 处理时间格式
-                if 'create_time' in key.lower() and isinstance(value, str) and 'T' in value:
-                    date_part, time_part = value.split('T')
-                    time_part = time_part.split('.')[0] if '.' in time_part else time_part
-                    value = f"{date_part} {time_part}"
-                value = str(value).replace('|', '\\|').replace('\n', ' ')
-                row_data.append(value)
-            
-            markdown_table += "| " + " | ".join(row_data) + " |\n"
-        
-        return markdown_table
-
 
     def simple_text_to_markdown(self, text):
         """简单的文本到Markdown转换"""
@@ -133,6 +132,7 @@ class FoodService:
         self, 
         type,
         content,
+        is_ensure: Optional[int] = 0,
         **kwargs
     ) -> Any:
         
@@ -153,76 +153,94 @@ class FoodService:
             }
 
             # 今日菜单数据
-            data_list = [
-                {
-                    "dish_id": "CD001",
-                    "dish_name": "剁椒鸡蛋",
-                    "category": "家常菜",
-                    "price": "18元",
-                    "ingredients": "鸡蛋、剁椒、葱花",
-                    "nutrition": "高蛋白、开胃下饭", 
-                    "availability": "有货",
-                    "rating": "4.6⭐",
-                    "description": "嫩滑鸡蛋配香辣剁椒",
-                    "image": "duojiao_jidan.jpg"
-                },
-                {
-                    "dish_id": "CD002", 
-                    "dish_name": "清蒸鲈鱼",
-                    "category": "蒸菜",
-                    "price": "38元",
-                    "ingredients": "新鲜鲈鱼、蒸鱼豉油",
-                    "nutrition": "低脂高蛋白、易消化",
-                    "availability": "有货", 
-                    "rating": "4.8⭐",
-                    "description": "肉质鲜嫩，营养丰富",
-                    "image": "qingzheng_luyu.jpg"
-                },
-                {
-                    "dish_id": "CD003",
-                    "dish_name": "小白菜豆腐汤",
-                    "category": "汤品",
-                    "price": "12元",
-                    "ingredients": "小白菜、嫩豆腐",
-                    "nutrition": "清淡养胃、补钙",
-                    "availability": "有货",
-                    "rating": "4.5⭐", 
-                    "description": "清香爽口，老人最爱",
-                    "image": "baicai_doufu.jpg"
-                }
-            ]
-            result = self.format_table_data_markdown(type=content, key_mapping=key_mapping, data_list=data_list)
-            result = result + "\n" + "<card>1</card>"
+            # text_list_zh = utils.convert_to_chinese_fields(data_list=food_data_list, key_mapping=key_mapping)
+            data_list_str = json.dumps(self.food_data_list, ensure_ascii=False, indent=2)
+            result = f"""
+            <card name="MenuCards" content="为您查到{len(self.food_data_list)}条菜品信息">{data_list_str}</card>
+            """
         if type == "ORDER":
-            result = """
-            🍽️ 助餐订单确认
+            dish_info = None
+            for item in self.food_data_list:
+                if item["dish_name"] == content:
+                    dish_info = item
+            order_id = uuid.uuid4().hex
+            dish_name = dish_info["dish_name"]
+            dish_id = dish_info["dish_id"]
+            current_time = datetime.now()
+            delivery_time_start = current_time + timedelta(hours=1)
+            delivery_time_end = current_time + timedelta(hours=1.5)
+            arrive_start_time = delivery_time_start.strftime('%H:%M:%S')
+            arrive_end_time = delivery_time_end.strftime('%H:%M:%S')
+            price = dish_info["price"]
+            result_order = f"""
+            ===========================================
+                           助餐订单
+            ===========================================
 
-            订单编号：ZC202409015
-            菜品名称：剁椒鸡蛋
-            菜品编号：CD001
-            份数：1份
-            单价：18元/份
-            总金额：18元
+            订单编号：{order_id}
+            下单时间：{current_time}
 
-            👤 客户信息
+            -------------------------------------------
+                        订单详情
+            -------------------------------------------
+            菜品名称：{dish_name}
+            菜品编号：{dish_id}
+            份    数：1份
+            单    价：{price}元/份
+            总 金 额：{price}元
+
+            -------------------------------------------
+                        客户信息  
+            -------------------------------------------
             客户姓名：张秀英
             送餐地址：幸福小区3栋201室
             联系电话：138****5678
 
-            🕐 用餐安排
+            -------------------------------------------
+                        用餐安排
+            -------------------------------------------
             用餐时间：今日午餐
             特殊要求：少放盐，口味清淡
-            下单时间：2024-09-08 11:30
 
-            🚚 配送信息
-            预计送达：12:00-12:30
+            -------------------------------------------
+                        配送信息
+            -------------------------------------------
+            预计送达：{arrive_start_time}-{arrive_end_time}
+
+            ===========================================
+                        订单确认完成
+                    请妥善保管此订单凭证
+            ===========================================
             """
-            result = self.simple_text_to_markdown(result)
-            result = result + "\n" + "<confirm>请确认您的订单？</confirm>"
-        if type == "REWARD":
-            result = """
-            收到您的评价，我们后续优化菜品口感！
+            
+            result_order_info = f"""
+            🍽️ 助餐订单确认
+            📋 订单详情
+            菜品名称： {dish_name}
+            菜品编号： {dish_id}
+            份数： 1份
+            单价： {price}元/份
+            总金额： {price}元
+            👤 客户信息
+            客户姓名： 张秀英
+            送餐地址： 幸福小区3栋201室
+            联系电话： 138****5678
+            🕐 用餐安排
+            用餐时间： 今日午餐
+            特殊要求： 少放盐，口味清淡
             """
+            if not is_ensure:
+                result = self.simple_text_to_markdown(result_order_info)
+                result = result + "\n" + "<confirm>请确认您的订单？</confirm>"
+            else:
+                html_file_name = f"{uuid.uuid4().hex}.html"
+                output_file = f"{SOURCE_STORAGE_PATH}/{html_file_name}"
+                order_info_source = utils.generate_order_html(title="助餐订单", order_content=result_order, output_file=output_file)
+                result = f"""<preview name="WebPreviewCard" content="已发送您的订单详情，请核对！">{SOURCE_API_PREFIX}/{html_file_name}</preview>"""
+            if type == "REWARD":
+                result = """
+                收到您的评价，我们后续优化菜品口感！
+                """
         
         for item in result:
             yield item

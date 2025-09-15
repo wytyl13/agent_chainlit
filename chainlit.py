@@ -280,37 +280,6 @@ async def tool_1():
     return "Response from the tool!"
 
 
-def request_url(url: str, param_dict: Dict, method: Optional[str] = "POST"):
-    # 同步版本
-    try:
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        print(param_dict)
-        print(url)
-        if method.upper() == 'GET':
-            response = requests.get(url, params=param_dict, headers=headers, timeout=10)
-        elif method.upper() == 'POST':
-            # POST请求：参数放在请求体中
-            response = requests.post(url, json=param_dict, headers=headers, timeout=10)
-        else:
-            # 其他方法
-            response = requests.request(method, url, json=param_dict, headers=headers, timeout=10)
-        response.raise_for_status()
-        result = response.json()
-        if isinstance(result, dict):
-            if result.get("success") and "data" in result:
-                return result["data"]
-            elif result.get("success") and "message" in result:
-                return result["message"]
-            elif not result.get("success"):
-                return result.get('message', 'Unknown error')
-        return result
-    except Exception as e:
-        return str(e)
-
 
 @cl.password_auth_callback
 def auth_callback(username: str, password: str) -> Optional[cl.User]:
@@ -549,18 +518,9 @@ async def main(message: cl.Message):
         chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
         print(f"chat_history: ------------------------------- {chat_history}")
         
-        if chat_history:
-            if len(chat_history) <= 8:
-                chat_history = chat_history[1:-1]
-            if len(chat_history) > 8:
-                chat_history = chat_history[-7:-1]
-            
-            chat_history = [[chat_history[i]['content'][:30], chat_history[i+1]['content'][:30]] 
-                for i in range(0, len(chat_history)-1, 2) 
-                if chat_history[i]['role'] == 'user' and chat_history[i+1]['role'] == 'assistant']
-            print(chat_history)
+        chat_history = chat_history[1:-1] if chat_history else chat_history
+        chat_history = chat_history[:6] if len(chat_history) < 6 else chat_history
         print(f"chat_history: ------------------------------- {chat_history}")
-        chat_history = []
         try:
             if role == "user":
                 msg = cl.Message(content="")
@@ -569,7 +529,7 @@ async def main(message: cl.Message):
                     "question": user_text,
                     "messages": chat_history
                 }
-                result = request_url(
+                result = utils.request_url(
                     url=START_SERVICE_API,
                     param_dict=param_dict
                 )
@@ -583,52 +543,9 @@ async def main(message: cl.Message):
                 except Exception as e:
                     print("接受到字符串格式返回数据")
                     segments = utils.parse_content(content=result)
-                result_seg = await tag_process.process_segments(segments=segments)
-                # for item in result:
-                #     # <confirm>请确定你的订单</confirm>
-                #     # <card>JSON数据</card>
-                #     # <image></image>
-                #     await msg.stream_token(item)
-                match_zhuyunying = re.search(r'<zhuyunying>(.*?)</zhuyunying>', result)
-                # 添加调试信息
-                if match_zhuyunying:
-                    # 数据
-                    sites = ["幸福站", "和谐站", "康乐站"]
-                    orders = [865, 743, 621]
-                    satisfaction = [0.99, 0.98, 0.97]
-                    
-                    # 创建子图
-                    fig = make_subplots(
-                        rows=1, cols=2,
-                        subplot_titles=("订单数统计", "满意度统计"),
-                        specs=[[{"secondary_y": False}, {"secondary_y": False}]]
-                    )
-                    
-                    # 添加订单数柱状图
-                    fig.add_trace(
-                        go.Bar(x=sites, y=orders, name="订单数", marker_color='lightblue'),
-                        row=1, col=1
-                    )
-                    
-                    # 添加满意度柱状图
-                    fig.add_trace(
-                        go.Bar(x=sites, y=satisfaction, name="满意度", marker_color='lightgreen'),
-                        row=1, col=2
-                    )
-                    
-                    # 更新布局
-                    fig.update_layout(
-                        title="智慧养老社区 - 各站点运营数据",
-                        showlegend=False,
-                        title_x=0.5,
-                        height=400,
-                    )
-                    
-                    # 发送图表
-                    await cl.Message(
-                        content="以下是各站点运营数据的柱状图展示：",
-                        elements=[cl.Plotly(name="chart", figure=fig, display="inline")]
-                    ).send()
+                chat_history.append({"role": "user", "content": user_text})
+                chat_history.append({"role": "assistant", "content": result})
+                result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=START_SERVICE_API)
                 
                 await msg.send()
             else:

@@ -11,12 +11,13 @@ import shutil
 import re
 import yaml
 from typing import (
-    Optional
+    Optional,
+    Dict
 )
 from enum import Enum
 import jieba
 import numpy as np
-
+import requests
 
 from agent.utils.log import Logger
 from rich.console import Console
@@ -65,6 +66,161 @@ class Utils:
         error_info = traceback.format_exc()
         error = f"{error_info}{str(e)}！\n{error_info}"
         return error
+
+
+    def request_url(self, url: str, param_dict: Dict, method: Optional[str] = "POST"):
+        # 同步版本
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            print(param_dict)
+            print(url)
+            if method.upper() == 'GET':
+                response = requests.get(url, params=param_dict, headers=headers, timeout=10)
+            elif method.upper() == 'POST':
+                # POST请求：参数放在请求体中
+                response = requests.post(url, json=param_dict, headers=headers, timeout=10)
+            else:
+                # 其他方法
+                response = requests.request(method, url, json=param_dict, headers=headers, timeout=10)
+            response.raise_for_status()
+            result = response.json()
+            if isinstance(result, dict):
+                if result.get("success") and "data" in result:
+                    return result["data"]
+                elif result.get("success") and "message" in result:
+                    return result["message"]
+                elif not result.get("success"):
+                    return result.get('message', 'Unknown error')
+            return result
+        except Exception as e:
+            return str(e)
+
+
+    def format_table_data_markdown(self, type, key_mapping, data_list):
+        if not data_list:
+            return f"暂无{type}信息"
+        
+        if key_mapping is None:
+            key_mapping = {
+            'id': 'ID',
+            'name': '姓名',
+            'age': '年龄', 
+            'type': '类型',
+            'content': '内容',
+            'create_time': '创建时间',
+            'update_time': '更新时间',
+            'status': '状态',
+            'value': '数值',
+            'object': '项目',
+            'description': '描述'
+        }
+            
+        # 创建表格标题
+        markdown_table = f"### 您好！我已为您查询到{type}的信息：\n\n"
+        first_dict = data_list[0] if data_list else {}
+        available_keys = list(first_dict.keys())
+        
+        # 创建表头
+        headers = [key_mapping.get(key, key) for key in available_keys]
+        markdown_table += "| " + " | ".join(headers) + " |\n"
+        markdown_table += "|" + "|".join(["-" * len(header) for header in headers]) + "|\n"
+        for i, item in enumerate(data_list, 1):
+            row_data = []
+            for key in available_keys:
+                value = item.get(key, '未知')
+                # 处理时间格式
+                if 'create_time' in key.lower() and isinstance(value, str) and 'T' in value:
+                    date_part, time_part = value.split('T')
+                    time_part = time_part.split('.')[0] if '.' in time_part else time_part
+                    value = f"{date_part} {time_part}"
+                value = str(value).replace('|', '\\|').replace('\n', ' ')
+                row_data.append(value)
+            
+            markdown_table += "| " + " | ".join(row_data) + " |\n"
+        
+        return markdown_table
+
+
+    def generate_order_html(self, title, order_content, output_file=None):
+        """
+        生成订单HTML文件
+        
+        参数:
+        title: 网页标题
+        order_content: 订单内容（完整的文本内容）
+        output_file: 输出文件名，如果为None则返回HTML字符串
+        
+        返回:
+        如果指定了output_file，则保存文件并返回文件路径
+        否则返回HTML字符串
+        """
+        
+        html_template = f'''<!DOCTYPE html>
+    <html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{title}</title>
+        <style>
+            body {{
+                margin: 0;
+                padding: 20px;
+                background-color: #f5f5f5;
+                font-family: 'Courier New', monospace;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+            }}
+            
+            .order-container {{
+                background-color: white;
+                border: 2px solid #333;
+                border-radius: 8px;
+                padding: 30px;
+                width: 600px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                line-height: 1.6;
+                font-size: 14px;
+            }}
+            
+            .order-content {{
+                white-space: pre-line;
+                text-align: center;
+                color: #333;
+            }}
+            
+            @media print {{
+                body {{
+                    background-color: white;
+                    padding: 0;
+                }}
+                .order-container {{
+                    border: 1px solid #333;
+                    box-shadow: none;
+                    margin: 0;
+                }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="order-container">
+            <div class="order-content">{order_content}</div>
+        </div>
+    </body>
+    </html>'''
+        
+        if output_file:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(html_template)
+            print(f"HTML文件已生成: {output_file}")
+            return output_file
+        else:
+            return html_template
 
 
     def _extract_attributes(self, full_match):
