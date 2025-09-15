@@ -92,7 +92,7 @@ class ProcurementProject:
                 else:
                     result = f"好的，收到{type}项目 {project_name} 命令<confirm>请确认是否操作{type}？</confirm>"
             else:
-                result = f"好的，已为您{type}项目{project_name}..................................................."
+                result = f"好的，为您{type}项目{project_name}..................................................."
         else:
             if not area:
                 result = f"请输入具体的适用区域"
