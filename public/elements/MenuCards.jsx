@@ -47,7 +47,7 @@ export default function MenuCards() {
     console.log('点餐:', dishName, price);
     // 使用 Chainlit 提供的 sendUserMessage API
     if (typeof sendUserMessage === 'function') {
-      sendUserMessage(`我要点餐：${dishName} (${price})`);
+      sendUserMessage(`我要点餐：${dishName}`);
     }
   };
 

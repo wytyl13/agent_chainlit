@@ -55,6 +55,8 @@ environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
 print(environment)
 API_PREFIX = os.getenv("API_PREFIX")
 START_SERVICE_API = f"{API_PREFIX}/chat/function_call/start"
+FOOD_MANAGER_SERVICE_API = f"{API_PREFIX}/chat/function_call/food_manager_server"
+FOOD_USER_SERVICE_API = f"{API_PREFIX}/chat/function_call/food_user_server"
 
 SQL_CONFIG_PATH = environment["SQL_CONFIG_PATH"] if "SQL_CONFIG_PATH" in environment else None
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml") if SQL_CONFIG_PATH is None else SQL_CONFIG_PATH
@@ -64,7 +66,6 @@ sql_config = SqlConfig.from_file(SQL_CONFIG_PATH)
 audio_buffer = None
 
 SAVE_DIR = str(ROOT_DIRECTORY / "upload_dir")
-
 
 
 def extract_and_clean_tool_info(text):
@@ -116,35 +117,15 @@ async def create_function_menu(user_role, community):
         # 普通用户功能菜单
         actions = [
             cl.Action(
-                name="service_inquiry",
-                payload={"action": "service_inquiry"},
-                label="🏥 服务咨询"
+                name="user_server",
+                payload={"action": "user_server"},
+                label="🏥 用户服务端"
             ),
             cl.Action(
-                name="online_shopping",
-                payload={"action": "online_shopping"},
-                label="🛒 在线购物"
+                name="start",
+                payload={"action": "star"},
+                label="🛒 起始测试服务"
             ),
-            cl.Action(
-                name="food_service",
-                payload={"action": "food_service"},
-                label="🍽️ 餐饮服务"
-            ),
-            cl.Action(
-                name="course_booking",
-                payload={"action": "course_booking"},
-                label="📚 课程预约"
-            ),
-            cl.Action(
-                name="subsidy_inquiry",
-                payload={"action": "subsidy_inquiry"},
-                label="💰 补贴查询"
-            ),
-            cl.Action(
-                name="show_menu",
-                payload={"action": "show_menu"},
-                label="📋 主菜单"
-            )
         ]
     
     return actions
@@ -239,29 +220,13 @@ async def on_system_settings(action):
     await cl.Message(content="⚙️ 系统设置：\n1. 基础设置\n2. 安全设置\n3. 通知设置\n4. 备份设置").send()
 
 
-@cl.action_callback("service_inquiry")
-async def on_service_inquiry(action):
+@cl.action_callback("user_server")
+async def on_user_server(action):
     await cl.Message(content="🏥 服务咨询：请问您需要咨询什么服务？\n1. 医疗健康\n2. 生活服务\n3. 娱乐活动\n4. 其他服务").send()
 
-@cl.action_callback("online_shopping")
-async def on_online_shopping(action):
+@cl.action_callback("start")
+async def on_start(action):
     await cl.Message(content="🛒 欢迎来到在线购物！请选择商品类别：\n1. 生活用品\n2. 食品饮料\n3. 健康用品\n4. 其他商品").send()
-
-@cl.action_callback("food_service")
-async def on_food_service(action):
-    await cl.Message(content="🍽️ 餐饮服务：\n1. 查看今日菜单\n2. 预订餐食\n3. 营养咨询\n4. 特殊饮食需求").send()
-
-@cl.action_callback("course_booking")
-async def on_course_booking(action):
-    await cl.Message(content="📚 课程预约：\n1. 查看可预约课程\n2. 我的课程安排\n3. 取消预约\n4. 课程反馈").send()
-
-@cl.action_callback("subsidy_inquiry")
-async def on_subsidy_inquiry(action):
-    await cl.Message(content="💰 补贴查询：\n1. 查看可申请补贴\n2. 补贴申请状态\n3. 历史补贴记录\n4. 补贴政策咨询").send()
-
-@cl.action_callback("community_info")
-async def on_community_info(action):
-    await cl.Message(content="🏘️社区信息：\n1. 社区公告\n2. 活动安排\n3. 设施状态\n4. 联系方式").send()
 # 功能菜单----------------------------------------------------------------------------------------------
 
 
@@ -278,7 +243,6 @@ async def tool_1():
     # Fake tool
     await cl.sleep(2)
     return "Response from the tool!"
-
 
 
 @cl.password_auth_callback
@@ -517,22 +481,21 @@ async def main(message: cl.Message):
         print(f"role: ================ {role}")
         chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
         print(f"chat_history: ------------------------------- {chat_history}")
-        chat_history = chat_history[-10:]
+        chat_history = chat_history[1:-1][-6:]
         print(f"chat_history: ------------------------------- {chat_history}")
         try:
             if role == "user":
                 msg = cl.Message(content="")
-                content_buffer = ""
                 param_dict = {
                     "question": user_text,
                     "messages": chat_history
                 }
                 result = utils.request_url(
-                    url=START_SERVICE_API,
+                    url=FOOD_MANAGER_SERVICE_API,
                     param_dict=param_dict
                 )
                 print("================================")
-                print(result)
+                print(f"result: ------------------------------------{result}")
                 print("================================")
                 segments = None
                 try:
@@ -541,9 +504,9 @@ async def main(message: cl.Message):
                 except Exception as e:
                     print("接受到字符串格式返回数据")
                     segments = utils.parse_content(content=result)
-                chat_history.append({"role": "user", "content": user_text})
-                chat_history.append({"role": "assistant", "content": result})
-                result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=START_SERVICE_API)
+                chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
+                chat_history = chat_history[1:][-6:]
+                result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=FOOD_MANAGER_SERVICE_API)
             else:
                 await msg.stream_token("暂未开通")
         except Exception as e:

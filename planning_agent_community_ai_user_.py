@@ -137,7 +137,12 @@ class PlanningAgentCommunityAiUser:
         
         while True:
             # 1 格式化提示词并输入大语言模型
-            history = '\n'.join(['Question:%s\nAnswer:%s' % (his[0], his[1]) for his in chat_history])
+            # history = '\n'.join(['Question:%s\nAnswer:%s' % (his[0], his[1]) for his in chat_history])
+            print(f"chat_history: --------------------------------------- {chat_history}")
+            print(f"chat_history: --------------------------------------- {chat_history}")
+            print(f"chat_history: --------------------------------------- {chat_history}")
+            print(f"chat_history: --------------------------------------- {chat_history}")
+            history = '\n'.join(['Question:%s\nAnswer:%s' % (his['content'] if his['role'] == 'user' else '', his['content'] if his['role'] == 'assistant' else '') for his in chat_history])
             # 兼容qwen2.5和其他模型
             model_name = 'qwen2.5'
             history = ';'.join(['Question:%s;Answer:%s' % (his[0], his[1]) for his in chat_history])
@@ -313,7 +318,7 @@ class PlanningAgentCommunityAiUser:
                     
                     chat_history.append((query, final_answer))
                     # return False, final_answer, chat_history
-                    self._set_status("success")
+                    # self._set_status("success")
                     for char in final_answer:
                         yield char
                     return
@@ -348,8 +353,9 @@ class PlanningAgentCommunityAiUser:
                         yield chunk
                     return
                 else:
-                    error_msg = f"工具执行异常: {str(e)}"
-                    self._set_status("error", error_msg)
+                    import traceback
+                    error_msg = f"工具执行异常: {str(e)}\n{traceback.format_exc()}"
+                    # self._set_status("error", error_msg)
                     for char in error_msg:
                         yield char
                     return

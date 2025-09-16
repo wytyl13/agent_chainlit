@@ -52,6 +52,9 @@ class TagProcessor:
             return False
 
 
+    
+
+
     async def process_card_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
         """处理card标签"""
         try:
@@ -87,24 +90,27 @@ class TagProcessor:
                 cl.Action(name="cancel", payload={"value": "取消"}, label="🔴 取消操作")
             ]
             message_content = attributes.get('content') if attributes else ""
-            content = message_content if content == "" or content is None else content
-            
+            message_content = message_content if message_content else "确认！"
             res = await cl.AskActionMessage(
                 content=f"⚠️ **操作确认**\n\n{content}",
                 actions=actions
             ).send()
-            print("whoami-----------------------------------------------------------------------")
-            print("whoami-----------------------------------------------------------------------")
+            chat_history.append({"role": "assistant", "content": content})
+            
             if res and res.get("payload").get("value") == "确认":
                 # 调用确认接口
                 await cl.Message(
-                    content="确认!",
+                    content=message_content,
                 ).send()
                 
                 param_dict = {
-                    "question": "确认!",
-                    "messages": chat_history
+                    "question": message_content,
+                    "messages": chat_history,
+                    "is_ensure": 1
                 }
+                print(f"attributes: --------------------------------- {attributes}")
+                print(f"message_content: --------------------------------- {message_content}")
+                print(f"content: --------------------------------- {content}")
                 print(f"param_dict: --------------------------------- {param_dict}")
                 print(f"function_call_url: --------------------------------- {function_call_url}")
                 # function_call
@@ -255,7 +261,9 @@ class TagProcessor:
             'image': self.process_image_tag,
             'preview': self.process_preview_tag
         }
-        
+        print(f"attributes: ------------------------------------------------------------- {attributes}")
+        print(f"attributes: ------------------------------------------------------------- {attributes}")
+        print(f"attributes: ------------------------------------------------------------- {attributes}")
         handler = handler_map.get(tag_name)
         if handler:
             return await handler(content, attributes, chat_history, function_call_url)
