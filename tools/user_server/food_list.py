@@ -31,14 +31,12 @@ utils = Utils()
 class FoodServiceSchema(BaseModel):
 
     type: str = Field(
-        description="查询类型: str = <LIST: 查看早餐、午餐、晚餐菜品信息, ORDER: 预定一份菜品, REWARD: 评价某个菜品的口感>"
+
+        description="查看早餐、午餐、晚餐菜品信息"
     )
-    content: str = Field(
-        description="查询的菜品时段信息，预定的某个菜品名称或评价的某个菜品"
-    )
-    is_ensure: int = Field(
+    dish_name: str = Field(
         default=None,
-        description="用户是否已经明确确认订单：0=首次预定订单（如：我要点餐等，没有向用户明确是否下单），需要向用户确认；1=用户已明确确认，可直接执行该指令。只有当用户明确说出'确认'、'同意'、'是的'等确认词汇时才设为1。"
+        description="查询的菜品名称，应该从"
     )
 
 @tool
@@ -168,7 +166,6 @@ class FoodService:
                 "url": f"{SOURCE_API_PREFIX}/西红柿鸡蛋.jpg"
             }
         ]
-        
         self.food_name_list = [item["dish_name"] for item in self.food_data_list] 
         self.food_name_str = '、'.join(self.food_name_list)
 
@@ -238,34 +235,6 @@ class FoodService:
             arrive_start_time = delivery_time_start.strftime('%H:%M:%S')
             arrive_end_time = delivery_time_end.strftime('%H:%M:%S')
             price = dish_info["price"]
-            
-            
-            printer_data = {
-                "orderName": "助餐订单确认单",
-                "orderId": order_id,
-                "orderTime": current_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "orderType": "助餐",
-                "productVoList": [
-                    {
-                        "name": dish_name,
-                        "id": dish_id,
-                        "quantity": "1份",
-                        "unitPrice": price
-                    }
-                ],
-                "totalAmount": price,
-                "customerName": "张秀英",
-                "customerAddress": "幸福小区3栋201室",
-                "customerPhone": "138****5678",
-                "warmPromptLabel": "用餐安排",
-                "warmPrompts": [
-                    "用餐时间：今日午餐",
-                    "特殊要求：少放盐，口味清淡"
-                ],
-                "expectedDeliveryTime": f"{arrive_start_time}-{arrive_end_time}"
-            }
-            print(printer_data)
-            
             address = "幸福小区3栋201室"
             result_order = f"""
             ===========================================
@@ -328,19 +297,14 @@ class FoodService:
                 result = self.simple_text_to_markdown(result_order_info)
                 result = result + "\n" + "<confirm>请确认您的订单？</confirm>"
             else:
-                result = utils.request_url(
-                    url="http://1.71.15.117:48099/print/start",
-                    param_dict=printer_data
-                )
-                print(f"result: --------------------------- {result}")
                 html_file_name = f"{uuid.uuid4().hex}.html"
                 output_file = f"{SOURCE_STORAGE_PATH}/{html_file_name}"
                 order_info_source = utils.generate_order_html(title="助餐订单", order_content=result_order, output_file=output_file)
                 result = f"""<preview name="WebPreviewCard" content="已发送您的订单详情，请核对！">{SOURCE_API_PREFIX}/{html_file_name}</preview>"""
-        if type == "REWARD":
-            result = """
-            收到您的评价，我们后续优化菜品口感！
-            """
+        # if type == "REWARD":
+        #     result = """
+        #     收到您的评价，我们后续优化菜品口感！
+        #     """
         result = json.dumps(utils.parse_content(result), 
             ensure_ascii=False,  # 支持中文
             indent=2)

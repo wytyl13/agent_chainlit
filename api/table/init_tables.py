@@ -13,6 +13,8 @@ from sqlalchemy.exc import OperationalError
 
 from api.table.community_real_time_data import CommunityRealTimeData
 from api.table.user_data import UserData
+from api.table.menu_data import MenuData
+from api.table.order_food_data import OrderFoodData
 
 from agent.config.sql_config import SqlConfig
 from api.table.base import Base
@@ -31,7 +33,7 @@ async def check_tables_exist():
     async with engine.begin() as conn:
         # 获取所有需要创建的表名
         table_names = [table.name for table in Base.metadata.tables.values()]
-        
+        print(table_names)
         # 检查每个表是否存在
         existing_tables = []
         for table_name in table_names:

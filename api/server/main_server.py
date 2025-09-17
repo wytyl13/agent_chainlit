@@ -16,6 +16,8 @@ from api.server.user_data_server import UserDataServer
 from api.server.function_call_server import FunctionCallServer
 from agent.tool.enhance_retrieval import EnhanceRetrieval
 from api.server.file_server import FileServer
+from api.server.menu_server import MenuDataServer
+from api.server.order_food_server import OrderFoodServer
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
@@ -58,6 +60,8 @@ class AeroSenseMainServer:
             enhance_retrieval=self.enhance_qwen_admin
         )
         self.file_service = FileServer(str(ROOT_DIRECTORY / "api" / "source"))
+        self.menu_service = MenuDataServer(self.sql_config_path)
+        self.order_food_service = OrderFoodServer(self.sql_config_path)
         # 设置应用
         self._setup_middleware()
         self._setup_base_routes()
@@ -67,22 +71,24 @@ class AeroSenseMainServer:
         """设置中间件"""
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=[
-                "https://localhost:8000",
-                "https://localhost:8002",
-                "https://localhost:8890",  
-                "https://127.0.0.1:8000", 
-                "https://127.0.0.1:8002",
-                "https://127.0.0.1:8890",
-                "https://1.71.15.121:8000",
-                "https://1.71.15.121:8002",
-                "https://1.71.15.121:8890",
-                "https://ai.shunxikj.com:8000", 
-                "https://ai.shunxikj.com:8002",
-                "https://ai.shunxikj.com:8890", 
-            ],
+            # allow_origins=[
+            #     "https://localhost:8000",
+            #     "https://localhost:8002",
+            #     "https://localhost:8890",  
+            #     "https://127.0.0.1:8000", 
+            #     "https://127.0.0.1:8002",
+            #     "https://127.0.0.1:8890",
+            #     "https://1.71.15.121:8000",
+            #     "https://1.71.15.121:8002",
+            #     "https://1.71.15.121:8890",
+            #     "https://ai.shunxikj.com:8000", 
+            #     "https://ai.shunxikj.com:8002",
+            #     "https://ai.shunxikj.com:8890", 
+            # ],
+            allow_origins=["*"],
+            allow_methods=["*"],
             allow_credentials=True,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            # allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=["*"],
         )
         
@@ -124,6 +130,12 @@ class AeroSenseMainServer:
 
         # 注意文件服务路由
         self.file_service.register_routes(self.app)
+
+        # 注册菜单服务
+        self.menu_service.register_routes(self.app)
+
+        # 注册菜品订单服务
+        self.order_food_service.register_routes(self.app)
 
     def run(
         self, 

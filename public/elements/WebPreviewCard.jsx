@@ -38,9 +38,10 @@ export default function WebPreviewCard() {
   const handleOpenLink = (url, title) => {
     console.log('打开链接:', title, url);
     // 使用 Chainlit 提供的 sendUserMessage API
-    if (typeof sendUserMessage === 'function') {
-      sendUserMessage(`访问链接：${title} - ${url}`);
-    }
+    // 如果希望chainlit收到用户打开页面的消息，取消这个注释
+    // if (typeof sendUserMessage === 'function') {
+    //   sendUserMessage(`访问链接：${title} - ${url}`);
+    // }
     // 同时在新窗口打开链接
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -48,13 +49,15 @@ export default function WebPreviewCard() {
   const handleCopyLink = (url, title) => {
     console.log('复制链接:', title, url);
     navigator.clipboard.writeText(url).then(() => {
-      if (typeof sendUserMessage === 'function') {
-        sendUserMessage(`已复制链接：${title}`);
-      }
+      // if (typeof sendUserMessage === 'function') {
+      //   sendUserMessage(`已复制链接：${title}`);
+      // }
+      console.log('链接已复制到剪贴板');
     }).catch(() => {
-      if (typeof sendUserMessage === 'function') {
-        sendUserMessage(`复制链接失败：${title}`);
-      }
+      // if (typeof sendUserMessage === 'function') {
+      //   sendUserMessage(`复制链接失败：${title}`);
+      // }
+      console.log('复制链接失败');
     });
   };
 
