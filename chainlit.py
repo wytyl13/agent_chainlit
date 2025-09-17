@@ -539,9 +539,6 @@ async def main(message: cl.Message):
                     url=START_SERVICE_API,
                     param_dict=param_dict
                 )
-                print("111================================111")
-                print(param_dict['messages'])
-                print("111================================111")
                 print("================================")
                 print(result)
                 print("================================")

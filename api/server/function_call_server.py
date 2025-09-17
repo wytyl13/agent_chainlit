@@ -44,6 +44,10 @@ from agent.tool.function_call import FunctionCall
 from tools.food_service import FoodService
 from tools.government_grant import GovernmentGrant
 from tools.procurement_project import ProcurementProject
+from tools.project_manager import ProjectManager
+from tools.service_object import ServiceObject
+from tools.subsidy_account import SubsidyAccount
+from tools.subsidy_package import SubsidyPackage
 
 client_service = ClientService()
 order = Order()
@@ -51,7 +55,12 @@ role = Role()
 food_service = FoodService()
 government_grant = GovernmentGrant()
 procurement_project = ProcurementProject()
-tools_start = [client_service, order, role, food_service,government_grant,procurement_project]
+project_manager = ProjectManager()
+service_object = ServiceObject()
+subsidyaccount = SubsidyAccount()
+subsidypackage = SubsidyPackage()
+
+tools_start = [client_service, order, role, food_service,government_grant,procurement_project,project_manager,service_object,subsidyaccount,subsidypackage]
 
 
 

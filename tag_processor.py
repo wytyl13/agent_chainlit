@@ -66,7 +66,7 @@ class TagProcessor:
                 name=card_name,
                 props={"data": data_list}
             )
-    
+            
             await cl.Message(
                 content=message_content,
                 elements=[menu_element]
