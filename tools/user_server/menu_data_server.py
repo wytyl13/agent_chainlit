@@ -49,7 +49,7 @@ class MenuServiceSchema(BaseModel):
 class MenuService:
     args_schema: Type[BaseModel] = MenuServiceSchema
     end_flag: int = 1
-    
+
     @overload
     def __init__(
         self, 
@@ -59,9 +59,8 @@ class MenuService:
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
 
-    
+
     async def execute(
         self, 
         operation: str = None,
@@ -103,21 +102,44 @@ class MenuService:
             if hasattr(response, 'body'):
                 content = json.loads(response.body.decode())
                 result = content.get("message", "菜品：{dish_name}新增失败！")
-        
+            response = await menu_data_server.post_menu_data(ListMenuData())
+            try:
+                response = utils.parse_server_return(response=response)
+                data_list_str = json.dumps(response, ensure_ascii=False, indent=2)
+                result = result + f"""<card name="MenuCards" content="最新的菜品信息如下：">{data_list_str}</card>"""
+            except Exception as e:
+                import traceback
+                raise ValueError(f"fail to exec UPDATE\n{traceback.format_exc()}") from e
+
         if operation == "UPDATE":
             menu_data = ListMenuData(dish_name=dish_name, price=price)
             response = await menu_data_server.update_menu_data(menu_data)
             if hasattr(response, 'body'):
                 content = json.loads(response.body.decode())
                 result = content.get("message", f"菜品：{dish_name}更新成功！")
-                
+                response = await menu_data_server.post_menu_data(ListMenuData(dish_name=dish_name))
+                try:
+                    response = utils.parse_server_return(response=response)
+                    data_list_str = json.dumps(response, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    import traceback
+                    raise ValueError(f"fail to exec UPDATE\n{traceback.format_exc()}") from e
+                result = result + f"""<card name="MenuCards" content="最新的菜品：{dish_name}信息如下：">{data_list_str}</card>"""
+
         if operation == "DELETE":
             menu_data = ListMenuData(dish_name=dish_name, price=price)
             response = await menu_data_server.delete_menu_data(menu_data)
             if hasattr(response, 'body'):
                 content = json.loads(response.body.decode())
                 result = content.get("message", f"菜品：{dish_name}删除成功！")
-        
+            response = await menu_data_server.post_menu_data(ListMenuData())
+            try:
+                response = utils.parse_server_return(response=response)
+                data_list_str = json.dumps(response, ensure_ascii=False, indent=2)
+                result = result + f"""<card name="MenuCards" content="最新的菜品信息如下：">{data_list_str}</card>"""
+            except Exception as e:
+                import traceback
+                raise ValueError(f"fail to exec UPDATE\n{traceback.format_exc()}") from e
         result = json.dumps(utils.parse_content(result), ensure_ascii=False, indent=2)
         for item in result:
             yield item

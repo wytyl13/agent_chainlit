@@ -45,6 +45,12 @@ from tools.user_server.menu_data_server import MenuService
 from agent.tool.planning_agent_community_ai_user import PlanningAgentCommunityAiUser
 from tools.user_server.order_food_tool import OrderFoodTool
 from tools.user_server.list_menu_tool import ListMenu
+from tools.user_server.test_server import Test
+from tools.user_server.health_report import HealthReport
+from tools.user_server.product_order import ProductOrder
+from tools.user_server.weixiu import WeiXiu
+from tools.user_server.graph_server import GraphServer
+
 
 REACT_FLAG = 0
 
@@ -57,7 +63,12 @@ tools_start = [client_service, role, food_service]
 
 
 menu_service = MenuService()
-tools_food_manager = [menu_service]
+test_service = Test()
+health_report = HealthReport()
+product_order = ProductOrder()
+weixiu = WeiXiu()
+graph_server = GraphServer()
+tools_food_manager = [menu_service, test_service, health_report, product_order, weixiu, graph_server]
 
 order_food_tool = OrderFoodTool()
 list_menu_tool = ListMenu()
@@ -213,6 +224,7 @@ class FunctionCallServer:
         """function call api"""
         try:
             question = function_call_server_request.question
+            is_ensure = function_call_server_request.is_ensure
             messages = self._process_messages(function_call_server_request.messages)
             if not messages:
                 question = "以下对话使用中文回答：如果用户明确下单ensure参数赋值为1，否则为0\n" + question
@@ -238,7 +250,8 @@ class FunctionCallServer:
                 async for chunk in self.function_call_start.execute(
                     question=question,
                     messages=messages,
-                    tools=tools_food_manager
+                    tools=tools_food_manager,
+                    is_ensure=is_ensure
                 ):
                     chunks.append(chunk)
             result = ''.join(chunks)
