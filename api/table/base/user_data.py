@@ -13,7 +13,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import sessionmaker
 import asyncio
 
-from api.table.base import Base
+from api.table.base.base import Base
 
 
 class UserData(Base):

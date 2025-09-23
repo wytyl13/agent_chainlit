@@ -17,7 +17,7 @@ import asyncio
 import uuid
 import json
 
-from api.table.order_food_data import OrderFoodData
+from api.table.start.order_food_data import OrderFoodData
 from agent.provider.sql_provider import SqlProvider
 from tools.utils import Utils
 
@@ -432,7 +432,7 @@ if __name__ == '__main__':
     from pathlib import Path
     import asyncio
     
-    ROOT_DIRECTORY = Path(__file__).parent.parent.parent
+    ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
     SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
     
     async def main():

@@ -364,7 +364,7 @@ def create_app():
         description="支持URL传参编辑、内容替换和回调保存的OnlyOffice编辑器服务",
         version="2.1.0"
     )
-    ROOT_DIRECTORY = Path(__file__).parent.parent.parent
+    ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
     file_server = FileServer(str(ROOT_DIRECTORY / "api" / "source"))
     file_server.register_routes(app)
     return app

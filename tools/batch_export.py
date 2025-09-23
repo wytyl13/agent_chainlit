@@ -22,8 +22,6 @@ from agent.provider.sql_provider import SqlProvider
 
 
 
-
-
 TABLE_DICT = [
     {"from": "CommunityRealTimeData", "to": "社区实时数据表"},
     {"from": "UserData", "to": "用户数据表"},

@@ -10,7 +10,7 @@ from sqlalchemy import Column, String, Integer, Float, Text, DateTime, func, JSO
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
-from api.table.base import Base
+from api.table.base.base import Base
 
 class OrderFoodData(Base):
     """点菜订单数据模型"""

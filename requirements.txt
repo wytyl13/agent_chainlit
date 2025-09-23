@@ -6,3 +6,5 @@ uvicorn
 azure-storage-file-datalake
 azure-storage-blob
 azure-identity
+pypinyin
+plotly

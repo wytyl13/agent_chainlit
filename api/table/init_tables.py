@@ -11,13 +11,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.exc import OperationalError
 
-from api.table.community_real_time_data import CommunityRealTimeData
-from api.table.user_data import UserData
-from api.table.menu_data import MenuData
-from api.table.order_food_data import OrderFoodData
+from api.table.base.community_real_time_data import CommunityRealTimeData
+from api.table.base.user_data import UserData
+from api.table.start.menu_data import MenuData
+from api.table.start.order_food_data import OrderFoodData
+from api.table.base.merchant_management import MerchantData
 
 from agent.config.sql_config import SqlConfig
-from api.table.base import Base
+from api.table.base.base import Base
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
@@ -72,9 +73,28 @@ async def create_all_tables():
     print("所有表创建完成！")
 
 
+async def create_missing_tables(missing_table_names):
+    """创建指定的缺失表"""
+    engine = create_async_engine(sql_config.sql_url)
+    
+    async with engine.begin() as conn:
+        from sqlalchemy import MetaData
+        missing_metadata = MetaData()
+        
+        for table_name in missing_table_names:
+            if table_name in Base.metadata.tables:
+                Base.metadata.tables[table_name].to_metadata(missing_metadata)
+        
+        await conn.run_sync(missing_metadata.create_all)
+    
+    await engine.dispose()
+    print(f"已创建缺失的表: {', '.join(missing_table_names)}")
+
+
 async def create_tables_with_check():
     """检查表是否存在，如果存在则询问用户是否删除重建"""
     existing_tables = await check_tables_exist()
+    all_required_tables = [table.name for table in Base.metadata.tables.values()]  # 定义所需的所有表
     
     if existing_tables:
         print(f"检测到以下表已存在: {', '.join(existing_tables)}")
@@ -89,7 +109,11 @@ async def create_tables_with_check():
                 await create_all_tables()
                 break
             elif user_choice in ['n', 'no', '否']:
-                print("跳过表创建，使用现有表结构")
+                print("保留现有表，创建缺失的表...")
+                # 创建不存在的表
+                missing_tables = set(all_required_tables) - set(existing_tables)
+                if missing_tables:
+                    await create_missing_tables(missing_tables)
                 break
             else:
                 print("请输入 y(是) 或 n(否)")
@@ -182,8 +206,8 @@ async def init_database():
     except Exception as e:
         print(f"数据库初始化过程中发生错误: {e}")
         raise
-    
-    
+
+
 if __name__ == '__main__':
     import asyncio
     asyncio.run(init_database())
