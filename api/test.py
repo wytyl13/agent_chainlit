@@ -9,8 +9,8 @@
 
 from agent.config.sql_config import SqlConfig
 from agent.provider.sql_provider import SqlProvider
-from api.table.user_data import UserData
-from api.table.community_real_time_data import CommunityRealTimeData
+from api.table.base.user_data import UserData
+from api.table.base.community_real_time_data import CommunityRealTimeData
 
 
 if __name__ == '__main__':

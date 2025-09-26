@@ -17,12 +17,12 @@ from fastapi.encoders import jsonable_encoder
 import asyncio
 from pathlib import Path
 
-from api.table.community_real_time_data import CommunityRealTimeData
+from api.table.base.community_real_time_data import CommunityRealTimeData
 from agent.config.sql_config import SqlConfig
 from agent.provider.sql_provider import SqlProvider
 
 
-ROOT_DIRECTORY = Path(__file__).parent.parent
+ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
 
 
@@ -191,7 +191,7 @@ class CommunityRealTimeDataServer:
     
     
 if __name__ == '__main__':
-    ROOT_DIRECTORY = Path(__file__).parent.parent.parent
+    ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
     SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "agent" / "config" / "yaml" / "postgresql_config.yaml")
     community_server = CommunityRealTimeDataServer(sql_config_path=SQL_CONFIG_PATH)
     community_info = CommunityRealTimeInfo(type="时讯消息", content="2025年8月10日放假", username="admin")

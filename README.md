@@ -42,21 +42,22 @@ docker pull nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 docker network create app-network
 ```
 
-#### 2. 启动Agent容器
+#### 2. 启动agent_chainlit容器
 
 ```bash
 docker run -d \
-  --name agent \
+  --name community_agent \
   --gpus all \
   --cpus="$(nproc)" \
   --memory="$(free -b | awk '/^Mem:/{printf "%.0f", $2*0.4}')" \
   --shm-size=16g \
+  -p 9000-9100:9000-9100 \
   --restart unless-stopped \
+  -v /home/weiyutao/cuda-data-1:/data \
+  -v /home/weiyutao/cuda-workspace-1:/workspace \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
   --privileged \
-  -p 8891:8891 \
-  -p 5004:5004 \
   -it \
   nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04 \
   /bin/bash

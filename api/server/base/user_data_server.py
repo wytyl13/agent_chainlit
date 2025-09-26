@@ -20,7 +20,7 @@ from fastapi.encoders import jsonable_encoder
 import asyncio
 
 
-from api.table.user_data import UserData
+from api.table.base.user_data import UserData
 from agent.provider.sql_provider import SqlProvider
 
 

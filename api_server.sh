@@ -18,10 +18,17 @@ from dotenv import load_dotenv
 load_dotenv()
 print(os.getenv('CONDA_ENVIRONMENT', 'agent_chainlit'))
 ")
+    FUNCTION_CALL_API_PORT=$(python -c "
+import os
+from dotenv import load_dotenv
+load_dotenv()
+print(os.getenv('FUNCTION_CALL_API_PORT', '9002'))
+")
 else
-    API_PORT=8890
+    API_PORT=9001
     CONDA_ENV_PATH='/work/soft/anaconda3/bin/'
     CONDA_ENVIRONMENT='agent_chainlit'
+    FUNCTION_CALL_API_PORT=9002
 fi
 
 # 从命令行参数获取 PROJECT_ROOT，如果未提供，则使用现有方式
@@ -44,6 +51,7 @@ check_and_kill_port() {
 }
 
 check_and_kill_port $API_PORT
+check_and_kill_port $FUNCTION_CALL_API_PORT
 
 # 激活虚拟环境
 CONDA_ENV=$CONDA_ENV_PATH
@@ -55,13 +63,26 @@ conda activate $CONDA_ENVIRONMENT
 timestamp=$(date +"%Y%m%d%H%M%S")
 LOG_PATH=$PROJECT_ROOT/logs/api_server
 LOG_FILE="$LOG_PATH/${timestamp}.log"
+SOURCE_PATH=$PROJECT_ROOT/api/source
+FUNCTION_CALL_API_LOG=$PROJECT_ROOT/logs/function_call_server
+FUNCTION_CALL_API_LOG_PATH=$FUNCTION_CALL_API_LOG/${timestamp}.log
 
 if [ ! -d "$LOG_PATH" ]; then
-    # 目录不存在，创建它
+    # 日志目录不存在，创建它
     mkdir -p "$LOG_PATH"
+fi
+if [ ! -d "$SOURCE_PATH" ]; then
+    # 资源文件目录不存在，创建它
+    mkdir -p "$SOURCE_PATH"
+fi
+if [ ! -d "$FUNCTION_CALL_API_LOG" ]; then
+    # function call server文件目录不存在，创建它
+    mkdir -p "$FUNCTION_CALL_API_LOG"
 fi
 python -m api.table.init_tables
 echo "日志文件路径: $LOG_FILE"
 cd "$PROJECT_ROOT" || { echo "无法切换到项目目录: $PROJECT_ROOT"; exit 1; }
 nohup python -m api.server.main_server -p $API_PORT > "$LOG_FILE" 2>&1 &
-echo "检测脚本已在后台运行，输出日志位于: $LOG_FILE"
+nohup python -m api.server.function_call.function_call_server --port $FUNCTION_CALL_API_PORT > "$FUNCTION_CALL_API_LOG_PATH" 2>&1 &
+echo "api_server服务已在后台运行，输出日志位于: $LOG_FILE"
+echo "function_call_server服务已在后台运行，输出日志位于: $FUNCTION_CALL_API_LOG_PATH"

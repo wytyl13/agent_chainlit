@@ -89,8 +89,8 @@ class CourseService:
                 row_data.append(value)
             
             markdown_table += "| " + " | ".join(row_data) + " |\n"
-        
         return markdown_table
+
 
 
     async def execute(

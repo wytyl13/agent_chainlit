@@ -24,12 +24,13 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import time
 
-from api.table.user_data import UserData
+from api.table.base.user_data import UserData
 from agent.provider.sql_provider import SqlProvider
-from api.table.menu_data import MenuData
+from api.table.start.menu_data import MenuData
 from tools.utils import Utils
 
 utils = Utils()
+
 
 class ListMenuData(BaseModel):
     dish_name: Optional[str] = None
@@ -42,6 +43,7 @@ class ListMenuData(BaseModel):
     url: Optional[str] = None
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 class MenuDataServer:
     """用户服务类"""
@@ -650,13 +652,12 @@ class MenuDataServer:
                 status_code=500,
                 content={"success": False, "message": f"删除菜品失败: {str(e)}", "timestamp": datetime.now().isoformat()}
             )
-            
-    
-    
+
+
 if __name__ == '__main__':
     from pathlib import Path
     import asyncio
-    ROOT_DIRECTORY = Path(__file__).parent.parent.parent
+    ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
     SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
     import json
     async def main():

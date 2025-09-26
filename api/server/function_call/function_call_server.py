@@ -35,6 +35,9 @@ from pydantic import BaseModel
 from agent.llm_api.ollama_llm import OllamaLLM
 from agent.tool.retrieval import Retrieval
 from agent.tool.enhance_retrieval import EnhanceRetrieval
+from dotenv import load_dotenv, dotenv_values
+import argparse
+
 
 from tools.order import Order
 from tools.client_service import ClientService
@@ -47,6 +50,24 @@ from tools.user_server.menu_data_server import MenuService
 from agent.tool.planning_agent_community_ai_user import PlanningAgentCommunityAiUser
 from tools.user_server.order_food_tool import OrderFoodTool
 from tools.user_server.list_menu_tool import ListMenu
+from tools.user_server.test_server import Test
+from tools.user_server.health_report import HealthReport
+from tools.user_server.product_order import ProductOrder
+from tools.user_server.weixiu import WeiXiu
+from tools.user_server.graph_server import GraphServer
+from tools.user_server.merchant_management_tool import MerchantManagementService
+
+ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
+SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
+OLLAMA_QWEN_CONFIG = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml")
+
+environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
+print(environment)
+QWEN_OLLAMA_CONFIG_PATH = environment["LLM_CONFIG_PATH"] if "LLM_CONFIG_PATH" in environment else None
+RETRIEVAL_DATA_PATH = environment["RETRIEVAL_DATA_PATH"] if "RETRIEVAL_DATA_PATH" in environment else None
+RETRIEVAL_STORAGE_PATH = environment["RETRIEVAL_STORAGE_PATH"] if "RETRIEVAL_STORAGE_PATH" in environment else None
+MODEL_PATH = environment["MODEL_PATH"] if "MODEL_PATH" in environment else None
+
 
 REACT_FLAG = 0
 
@@ -62,19 +83,46 @@ tools_start = [client_service, order, role, food_service,government_grant,procur
 
 
 menu_service = MenuService()
-tools_food_manager = [menu_service]
+test_service = Test()
+health_report = HealthReport()
+product_order = ProductOrder()
+weixiu = WeiXiu()
+graph_server = GraphServer()
+merchant_management = MerchantManagementService()
+meal_assistance_subsystem = [menu_service, merchant_management]
 
 order_food_tool = OrderFoodTool()
 list_menu_tool = ListMenu()
-tools_food_user = [order_food_tool, list_menu_tool]
+meal_assistance_service_app = [order_food_tool, list_menu_tool]
 
 
 class FunctionCallServerRequest(BaseModel):
     question: str = None
     messages: Optional[Union[str, List[Dict[str, str]]]] = None
+    service_name: Optional[str] = None
     stream: Optional[bool] = True
     is_ensure: Optional[int] = 0
-    
+
+
+
+service_config = {
+    "meal_assistance_subsystem": {
+        "name": "助餐服务子系统",
+        "emoji": "🏠",
+        "action": "switch_to_meal_subsystem",
+        "identifier": ":meal_assistance_subsystem",
+        "tools": meal_assistance_subsystem
+    },
+    "meal_assistance_service_app": {
+        "name": "助餐服务应用", 
+        "emoji": "🍽️",
+        "action": "switch_to_meal_service_app",
+        "identifier": ":meal_assistance_service_app",
+        "tools": meal_assistance_service_app
+    }
+}
+
+
 
 
 class FunctionCallServer:
@@ -101,7 +149,6 @@ class FunctionCallServer:
         DEFAULT_RETRIEVAL_STORAGE_PATH = "/work/ai/agent_chainlit/retrieval_storage"
         enhance_qwen_admin = EnhanceRetrieval(llm=llm_qwen, retrieval_flag=False, embedding_model_path="/work/ai/agent_chainlit/models", data_dir=DEFAULT_RETRIEVAL_DATA_PATH, index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH)
         self.function_call_react_user = PlanningAgentCommunityAiUser(
-            tools=tools_food_manager, 
             enhance_llm=enhance_qwen_admin
         )
 
@@ -142,8 +189,8 @@ class FunctionCallServer:
         app.post("/chat")(self.chat)
         app.post("/chat/function_call/start/stream")(self.function_call_chat_start_stream)
         app.post("/chat/function_call/start")(self.function_call_chat_start)
-        app.post("/chat/function_call/food_manager_server")(self.function_call_chat_food_manager_server)
-        app.post("/chat/function_call/food_user_server")(self.function_call_chat_food_user_server)
+        app.post("/chat/function_call")(self.function_call)
+        app.post("/chat/suggestions")(self.suggestions)
 
 
     async def function_call_chat_start_stream(
@@ -214,30 +261,33 @@ class FunctionCallServer:
             )
 
 
-    async def function_call_chat_food_manager_server(
+    async def function_call(
         self,
         function_call_server_request: FunctionCallServerRequest
     ):
         """function call api"""
         try:
             question = function_call_server_request.question
+            is_ensure = function_call_server_request.is_ensure
+            service_name = function_call_server_request.service_name
+            service_name = "meal_assistance_subsystem" if service_name is None else service_name
+            service_name = "meal_assistance_subsystem" if service_name not in service_config else service_name
             messages = self._process_messages(function_call_server_request.messages)
             if not messages:
-                question = "以下对话使用中文回答：如果用户明确下单ensure参数赋值为1，否则为0\n" + question
+                question = """以下对话使用中文回答：如果用户明确下单ensure参数赋值为1，否则为0。""" + question
         except Exception as e:
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "message": f"传参错误！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
             )
-        
+        print(f"service_name: -------------------------------------------------------------------- {service_name}")
+        print(f"service_name: -------------------------------------------------------------------- {service_name}")
+        print(f"service_name: -------------------------------------------------------------------- {service_name}")
         try:
             chunks = []
-            print(f"question: --------------------------- {question}")
-            print(f"question: --------------------------- {messages}")
-            
             if REACT_FLAG:
                 async for chunk in self.function_call_react_user.execute(
-                    tools=tools_food_manager,
+                    tools=service_config[service_name]["tools"],
                     question=question,
                     chat_history=messages
                 ):
@@ -246,7 +296,8 @@ class FunctionCallServer:
                 async for chunk in self.function_call_start.execute(
                     question=question,
                     messages=messages,
-                    tools=tools_food_manager
+                    tools=service_config[service_name]["tools"],
+                    is_ensure=is_ensure
                 ):
                     chunks.append(chunk)
             result = ''.join(chunks)
@@ -261,8 +312,8 @@ class FunctionCallServer:
                 status_code=500,
                 content={"success": False, "message": result, "data": None, "timestamp": datetime.now().isoformat()}
             )
-            
-            
+
+
     async def function_call_chat_food_user_server(
         self,
         function_call_server_request: FunctionCallServerRequest
@@ -315,6 +366,68 @@ class FunctionCallServer:
             )
 
 
+    async def suggestions(
+        self,
+        function_call_server_request: FunctionCallServerRequest
+    ):
+        """function call api"""
+        try:
+            question = function_call_server_request.question
+            is_ensure = function_call_server_request.is_ensure
+            service_name = function_call_server_request.service_name
+            service_name = "meal_assistance_subsystem" if service_name is None else service_name
+            service_name = "meal_assistance_subsystem" if service_name not in service_config else service_name
+            messages = function_call_server_request.messages
+            messages = self._process_messages(function_call_server_request.messages) if messages is not None else messages
+            question = """请根据用户的问题和历史会话消息，提供3个相关的后续问题建议，
+                格式为：
+                <suggestions>
+                1. 建议问题1
+                2. 建议问题2  
+                3. 建议问题3
+                </suggestions>
+            \n""" + question
+        except Exception as e:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": f"传参错误！{str(e)}", "data": None, "timestamp": datetime.now().isoformat()}
+            )
+        
+        try:
+            chunks = []
+            
+            if REACT_FLAG:
+                async for chunk in self.function_call_react_user.execute(
+                    tools=service_config[service_name]["tools"],
+                    question=question,
+                    chat_history=messages,
+                ):
+                    chunks.append(chunk)
+            else:
+                async for chunk in self.function_call_start.execute(
+                    question=question,
+                    messages=messages,
+                    tools=service_config[service_name]["tools"],
+                    is_ensure=is_ensure
+                ):
+                    chunks.append(chunk)
+            result = ''.join(chunks)
+            return JSONResponse(
+                status_code=200,
+                content={"success": True, "data": result, "timestamp": datetime.now().isoformat()}
+            )
+        except Exception as e:
+            import traceback
+            result = f"fail to exec function call api, {str(e)}\n{traceback.format_exc()}"
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": result, "data": None, "timestamp": datetime.now().isoformat()}
+            )
+
+
+
+
+
     async def chat(
         self, 
         request: Request
@@ -346,30 +459,78 @@ def create_app():
     )
     from agent.config.llm_config import LLMConfig
     
-    QWEN_OLLAMA_CONFIG_PATH = "/work/ai/agent_chainlit/config/yaml/ollama_config.yaml"
     llm_qwen = OllamaLLM(config=LLMConfig.from_file(Path(QWEN_OLLAMA_CONFIG_PATH)))
-    DEFAULT_RETRIEVAL_DATA_PATH = "/work/ai/agent_chainlit/retrieval_data"
-    DEFAULT_RETRIEVAL_STORAGE_PATH = "/work/ai/agent_chainlit/retrieval_storage"
     enhance_qwen_admin = EnhanceRetrieval(
         llm=llm_qwen, 
         retrieval_flag=False, 
-        data_dir=DEFAULT_RETRIEVAL_DATA_PATH, 
-        index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH,
-        embedding_model_path="/work/ai/agent/models"
+        data_dir=RETRIEVAL_DATA_PATH, 
+        index_dir=RETRIEVAL_STORAGE_PATH,
+        embedding_model_path=MODEL_PATH
     )
 
     function_call_server = FunctionCallServer(
-        enhance_retrieval=EnhanceRetrieval
+        enhance_retrieval=enhance_qwen_admin
     )
     function_call_server.register_routes(app)
     return app
 
 
+
+def parse_arguments():
+    """解析命令行参数"""
+    parser = argparse.ArgumentParser(
+        description="Function Call服务器",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+使用示例:
+  python function_call_server.py                    # 使用默认端口 8002
+  python function_call_server.py --port 8080       # 指定端口为 8080
+  python function_call_server.py -p 9000           # 指定端口为 9000 (简写)
+  python function_call_server.py --host 127.0.0.1  # 指定主机地址
+        """
+    )
+    
+    parser.add_argument(
+        "--port", "-p",
+        type=int,
+        default=8002,
+        help="服务器端口号 (默认: 8002)"
+    )
+    
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="服务器主机地址 (默认: 0.0.0.0)"
+    )
+    
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
     import uvicorn
+    args = parse_arguments()
     app = create_app()
     print("启动OnlyOffice编辑器: http://localhost:8002")
     print("支持URL传参编辑、内容替换和回调保存功能")
     print("保存API: https://ai.shunxikj.com:5002/api/files/upload")
     print("使用方式: /edit_url?url=文档URL&filename=文件名&replace_information=[{\"from\":\"原文本\",\"to\":\"新文本\"}]")
-    uvicorn.run(app, host="0.0.0.0", port=8002, log_level="info")
+    ssl_certfile = str(ROOT_DIRECTORY / "cert" / "shunxikj.com.crt")
+    ssl_keyfile = str(ROOT_DIRECTORY / "cert" / "shunxikj.com.key")
+    
+    
+    run_kwargs = {
+        "app": app,
+        "host": "0.0.0.0",
+        "port": args.port,
+        "log_level": "info",
+        "reload": False,
+    }
+    
+    # 如果提供了SSL证书，则添加SSL配置
+    if ssl_certfile and ssl_keyfile:
+        run_kwargs.update({
+            "ssl_certfile": ssl_certfile,
+            "ssl_keyfile": ssl_keyfile
+        })
+    uvicorn.run(**run_kwargs)
