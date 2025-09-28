@@ -35,6 +35,8 @@ TAG_PATTERNS = {
     'confirm': r'<confirm(?:\s+[^>]*)?>(.*?)</confirm>',
     'image': r'<image(?:\s+[^>]*)?>(.*?)</image>', 
     'preview': r'<preview(?:\s+[^>]*)?>(.*?)</preview>',
+    'suggestions': r'<suggestions(?:\s+[^>]*)?>(.*?)</suggestions>',
+    'real_time_vital': r'<real_time_vital(?:\s+[^>]*)?>(.*?)</real_time_vital>',
 }
 
 
@@ -167,7 +169,7 @@ class Utils:
         return result
 
 
-    def request_url(self, url: str, param_dict: Dict, method: Optional[str] = "POST"):
+    def request_url(self, url: str, param_dict: Dict, method: Optional[str] = "POST", timeout: int = 10):
         try:
             headers = {
                 'Content-Type': 'application/json',
@@ -180,11 +182,11 @@ class Utils:
             elif method.upper() == 'POST':
                 print(f"param_dict: ------------------------- {param_dict}")
                 print(f"url: ------------------------------ {url}")
-                response = requests.post(url, json=param_dict, headers=headers, timeout=10, verify=False)
+                response = requests.post(url, json=param_dict, headers=headers, timeout=timeout, verify=False)
                 print(f"response: =----================== {response}")
                 # 删除这些错误的判断！
             else:
-                response = requests.request(method, url, json=param_dict, headers=headers, timeout=10)
+                response = requests.request(method, url, json=param_dict, headers=headers, timeout=timeout)
                 
             response.raise_for_status()
             result = response.json()

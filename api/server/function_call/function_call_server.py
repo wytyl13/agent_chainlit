@@ -37,8 +37,10 @@ from agent.tool.retrieval import Retrieval
 from agent.tool.enhance_retrieval import EnhanceRetrieval
 from dotenv import load_dotenv, dotenv_values
 import argparse
+import base64
 
-
+from agent.llm_api.ollama_llm import OllamaLLM
+from agent.config.llm_config import LLMConfig
 from tools.order import Order
 from tools.client_service import ClientService
 from tools.role import Role
@@ -54,10 +56,16 @@ from tools.user_server.product_order import ProductOrder
 from tools.user_server.weixiu import WeiXiu
 from tools.user_server.graph_server import GraphServer
 from tools.user_server.merchant_management_tool import MerchantManagementService
+from tools.real_time_vital_analyze.real_time_vital_analyze_tool import RealTimeVitalAnalyze
+from tools.real_time_vital_analyze.welcome import WelcomeTool
+from tools.real_time_vital_analyze.health_report_tool import HealthReportTool
+
+
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
 OLLAMA_QWEN_CONFIG = str(ROOT_DIRECTORY / "config" / "yaml" / "ollama_config.yaml")
+TRADITIONAL_MEDICAL_OLLAMA_CONFIG = str(ROOT_DIRECTORY / "config" / "yaml" / "shizhen_ollama_config.yaml")
 
 environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
 print(environment)
@@ -66,58 +74,101 @@ RETRIEVAL_DATA_PATH = environment["RETRIEVAL_DATA_PATH"] if "RETRIEVAL_DATA_PATH
 RETRIEVAL_STORAGE_PATH = environment["RETRIEVAL_STORAGE_PATH"] if "RETRIEVAL_STORAGE_PATH" in environment else None
 MODEL_PATH = environment["MODEL_PATH"] if "MODEL_PATH" in environment else None
 
+ollama_shizhen = OllamaLLM(config=LLMConfig.from_file(Path(TRADITIONAL_MEDICAL_OLLAMA_CONFIG)))
+
+
 
 REACT_FLAG = 0
 
-client_service = ClientService()
-order = Order()
-role = Role()
-food_service = FoodService()
-tools_start = [client_service, role, food_service]
 
+# 1. welcome system
+welcome_tool_service = WelcomeTool()
+welcome_system = [welcome_tool_service]
 
-
+# 2. meal_assistance_subsystem
 menu_service = MenuService()
-test_service = Test()
-health_report = HealthReport()
-product_order = ProductOrder()
-weixiu = WeiXiu()
-graph_server = GraphServer()
-merchant_management = MerchantManagementService()
-meal_assistance_subsystem = [menu_service, merchant_management]
+meal_assistance_subsystem = [menu_service]
 
+
+# 3. meal_assistance_service_app
 order_food_tool = OrderFoodTool()
 list_menu_tool = ListMenu()
 meal_assistance_service_app = [order_food_tool, list_menu_tool]
 
 
+# 4. real_time_vital_analyze_service
+real_time_vital_analyze = RealTimeVitalAnalyze()
+health_report_tool = HealthReportTool()
+real_time_vital_analyze_service = [real_time_vital_analyze, health_report_tool]
+
+
+# 5. merchant_service_system
+merchant_management = MerchantManagementService()
+merchant_service_system = [merchant_management]
+
+
+
+
 class FunctionCallServerRequest(BaseModel):
     question: str = None
-    messages: Optional[Union[str, List[Dict[str, str]]]] = None
+    messages: Optional[Union[str, List[Dict[str, Any]]]] = None
     service_name: Optional[str] = None
     stream: Optional[bool] = True
     is_ensure: Optional[int] = 0
 
 
-
-service_config = {
-    "meal_assistance_subsystem": {
-        "name": "助餐服务子系统",
+service_config_list = [
+    {
+        "service_id": "welcome_system",
+        "service_name": "欢迎",
+        "emoji": "🍽️",
+        "action": "switch_to_welcome_system",
+        "identifier": "welcome_system",
+        "tools": welcome_system
+    },
+    {
+        "service_id": "meal_assistance_subsystem",
+        "service_name": "助餐服务子系统",
         "emoji": "🏠",
         "action": "switch_to_meal_subsystem",
-        "identifier": ":meal_assistance_subsystem",
+        "identifier": "meal_assistance_subsystem",
         "tools": meal_assistance_subsystem
     },
-    "meal_assistance_service_app": {
-        "name": "助餐服务应用", 
+    {
+        "service_id": "meal_assistance_service_app",
+        "service_name": "助餐服务应用",
         "emoji": "🍽️",
         "action": "switch_to_meal_service_app",
-        "identifier": ":meal_assistance_service_app",
+        "identifier": "meal_assistance_service_app",
         "tools": meal_assistance_service_app
+    },
+    {
+        "service_id": "real_time_vital_analyze_service",
+        "service_name": "实时生命体征监测系统",
+        "emoji": "🍽️",
+        "action": "switch_to_real_time_vital_analyze_service",
+        "identifier": "real_time_vital_analyze_service",
+        "tools": real_time_vital_analyze_service
+    },
+    {
+        "service_id": "merchant_service_system",
+        "service_name": "商家服务系统",
+        "emoji": "🍽️",
+        "action": "switch_to_merchant_service_system",
+        "identifier": "merchant_service_system",
+        "tools": merchant_service_system
+    },
+    {
+        "service_id": "traditional_medical_service",
+        "service_name": "中医问诊",
+        "emoji": "🍽️",
+        "action": "switch_to_traditional_medical_service",
+        "identifier": "traditional_medical_service",
+        "tools": merchant_service_system
     }
-}
+]
 
-
+service_config = {item['service_id']: {'service_name': item['service_name'], 'emoji': item['emoji'], 'action': item['action'], 'identifier': f":{item['identifier']}", 'tools': item['tools']} for item in service_config_list}
 
 
 class FunctionCallServer:
@@ -134,7 +185,7 @@ class FunctionCallServer:
 
 
         self.function_call_start = FunctionCall(
-            tools = tools_start,
+            tools = welcome_system,
             enhance_llm=self.enhance_retrieval,
         )
         from agent.config.llm_config import LLMConfig
@@ -266,7 +317,7 @@ class FunctionCallServer:
             service_name = "meal_assistance_subsystem" if service_name not in service_config else service_name
             messages = self._process_messages(function_call_server_request.messages)
             if not messages:
-                question = """以下对话使用中文回答：如果用户明确下单ensure参数赋值为1，否则为0。""" + question
+                question = """以下对话使用中文回答：""" + question
         except Exception as e:
             return JSONResponse(
                 status_code=400,
@@ -275,6 +326,29 @@ class FunctionCallServer:
         print(f"service_name: -------------------------------------------------------------------- {service_name}")
         print(f"service_name: -------------------------------------------------------------------- {service_name}")
         print(f"service_name: -------------------------------------------------------------------- {service_name}")
+        
+        if service_name == "traditional_medical_service":
+            try:
+                response = await ollama_shizhen._whoami_text(
+                    messages=messages,
+                    timeout=120,
+                    use_tool=False,
+                    temperature=0.0,
+                    tool_call_json=None
+                )
+                return JSONResponse(
+                    status_code=200,
+                    content={"success": True, "data": response, "timestamp": datetime.now().isoformat()}
+                )
+            except Exception as e:
+                import traceback
+                result = f"fail to exec function call api, {str(e)}\n{traceback.format_exc()}"
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "message": result, "data": None, "timestamp": datetime.now().isoformat()}
+                )
+        
+        
         try:
             chunks = []
             if REACT_FLAG:

@@ -51,6 +51,41 @@ class TagProcessor:
             await cl.Message(content=f"❌ 数据表格处理失败: {str(e)}").send()
             return False
 
+    
+    async def process_real_time_vital_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
+        """处理card标签"""
+        try:
+            card_name = attributes.get('name', 'DefaultCard') if attributes else 'DefaultCard'
+            data_list = json.loads(content)
+            message_content = attributes.get('content', '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作') if attributes else '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作'
+            
+            print(f"card_name: ---------------------------- {card_name}")
+            print(f"data_list: ---------------------------- {data_list}")
+            # # 创建自定义元素
+            if isinstance(data_list, list):
+                props = {"data": data_list}
+            elif isinstance(data_list, dict):
+                props = data_list
+                # result = utils.request_url(**props)
+                # result = [] if not isinstance(result, list) else result
+                # props = {"data": result, "apiUrl": props["url"]}
+            menu_element = cl.CustomElement(
+                name=card_name,
+                props=props
+            )
+    
+            await cl.Message(
+                content=message_content,
+                elements=[menu_element]
+            ).send()
+            
+            print("✅ Card处理成功")
+            return True
+        except Exception as e:
+            print(f"❌ Card处理失败: {e}")
+            return False
+
+
 
     async def process_card_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """处理card标签"""
@@ -83,6 +118,40 @@ class TagProcessor:
             return True
         except Exception as e:
             print(f"❌ Card处理失败: {e}")
+            return False
+        
+        
+    async def process_suggestion_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
+        """处理card标签"""
+        try:
+            card_name = attributes.get('name', 'DefaultCard') if attributes else 'DefaultCard'
+            data_list = json.loads(content)
+            message_content = attributes.get('content', '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作') if attributes else '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作'
+            
+            print(f"card_name: ---------------------------- {card_name}")
+            print(f"data_list: ---------------------------- {data_list}")
+            # # 创建自定义元素
+            if isinstance(data_list, list):
+                props = {"data": data_list}
+            elif isinstance(data_list, dict):
+                props = data_list
+                # result = utils.request_url(**props)
+                # result = [] if not isinstance(result, list) else result
+                # props = {"data": result, "apiUrl": props["url"]}
+            menu_element = cl.CustomElement(
+                name=card_name,
+                props=props
+            )
+    
+            await cl.Message(
+                content="",
+                elements=[menu_element]
+            ).send()
+            
+            print("✅ Suggestions处理成功")
+            return True
+        except Exception as e:
+            print(f"❌ Suggestions处理失败: {e}")
             return False
 
 
@@ -264,7 +333,9 @@ class TagProcessor:
             'confirm': self.process_confirm_tag,
             'zhuyunying': self.process_zhuyunying_tag,
             'image': self.process_image_tag,
-            'preview': self.process_preview_tag
+            'preview': self.process_preview_tag,
+            'suggestions': self.process_suggestion_tag,
+            'real_time_vital': self.process_real_time_vital_tag,
         }
         print(f"attributes: ------------------------------------------------------------- {attributes}")
         print(f"attributes: ------------------------------------------------------------- {attributes}")

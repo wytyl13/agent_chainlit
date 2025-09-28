@@ -17,7 +17,7 @@ import asyncio
 import uuid
 import json
 
-from api.table.start.order_food_data import OrderFoodData
+from api.table.meal_assistance_service_app.order_food_data import OrderFoodData
 from agent.provider.sql_provider import SqlProvider
 from tools.utils import Utils
 

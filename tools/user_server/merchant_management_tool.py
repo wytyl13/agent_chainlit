@@ -20,8 +20,8 @@ from datetime import datetime
 
 from agent.base.base_tool import tool
 from tools.utils import Utils
-from api.server.base.merchant_management_server import MerchantManagementServer
-from api.server.base.merchant_management_server import MerchantDataModel
+from api.server.merchant_service_system.merchant_management_server import MerchantManagementServer
+from api.server.merchant_service_system.merchant_management_server import MerchantDataModel
 
 
 # 配置常量（与MenuService保持一致的基础路径）

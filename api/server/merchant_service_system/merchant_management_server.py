@@ -17,7 +17,7 @@ from fastapi.encoders import jsonable_encoder
 import asyncio
 import json
 
-from api.table.base.merchant_management import MerchantData
+from api.table.merchant_service_system.merchant_management import MerchantData
 from agent.provider.sql_provider import SqlProvider
 from tools.utils import Utils
 

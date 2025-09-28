@@ -24,10 +24,10 @@ from pypinyin import pinyin, lazy_pinyin, Style
 
 from agent.base.base_tool import tool
 from tools.utils import Utils
-from api.server.start.order_food_server import OrderFoodServer
-from api.server.start.order_food_server import OrderFoodRequest
-from api.server.start.menu_server import MenuDataServer
-from api.server.start.menu_server import ListMenuData
+from api.server.meal_assistance_service_app.order_food_server import OrderFoodServer
+from api.server.meal_assistance_service_app.order_food_server import OrderFoodRequest
+from api.server.meal_assistance_subsystem.menu_server import MenuDataServer
+from api.server.meal_assistance_subsystem.menu_server import ListMenuData
 import pandas as pd
 
 SOURCE_STORAGE_PATH = "/work/ai/agent_chainlit/api/source"

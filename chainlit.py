@@ -49,7 +49,6 @@ from api.table.base.community_real_time_data import CommunityRealTimeData
 from agent.tool.water_machine_api import WaterMachineApi
 from agent.config.sql_config import SqlConfig
 from tag_processor import TagProcessor
-from api.server.function_call.function_call_server import service_config
 
 
 tag_process = TagProcessor()
@@ -61,8 +60,6 @@ START_SERVICE_API = f"{FUNCTION_CALL_API_PREFIX}/chat/function_call/start"
 
 FUNCTION_CALL_API = f"{FUNCTION_CALL_API_PREFIX}/chat/function_call"
 SUGGESTION_API = f"{FUNCTION_CALL_API_PREFIX}/chat/suggestion"
-# meal_assistance_subsystem = f"{FUNCTION_CALL_API_PREFIX}/chat/function_call/food_manager_server"
-# meal_assistance_service_app = f"{FUNCTION_CALL_API_PREFIX}/chat/function_call/food_user_server"
 
 
 SQL_CONFIG_PATH = environment["SQL_CONFIG_PATH"] if "SQL_CONFIG_PATH" in environment else None
@@ -74,6 +71,9 @@ sql_config = SqlConfig.from_file(SQL_CONFIG_PATH)
 audio_buffer = None
 
 SAVE_DIR = str(ROOT_DIRECTORY / "upload_dir")
+
+SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={"username": "shunxikeji"})
+SERVICE_INFO_DICT = {item['service_id']: {'service_name': item['service_name'], 'emoji': item['emoji'], 'action': item['action'], 'identifier': f":{item['identifier']}"} for item in SERVICE_INFO_JSON}
 
 
 def extract_and_clean_tool_info(text):
@@ -95,9 +95,10 @@ def extract_and_clean_tool_info(text):
 
 def create_service_action_callbacks():
     """动态为每个服务创建Action回调函数"""
-    for service_url, config in service_config.items():
-        action = config["action"]
-        service_name = config["name"]
+    for item in SERVICE_INFO_JSON:
+        service_url = item["service_id"]
+        action = item["action"]
+        service_name = item["service_name"]
         
         # 创建回调函数
         async def switch_service_callback(action, service_url=service_url, service_name=service_name):
@@ -115,8 +116,8 @@ create_service_action_callbacks()
 # 3. 添加查看当前服务的回调
 @cl.action_callback("show_current_service")
 async def show_current_service(action):
-    current_service = cl.user_session.get("selected_service", "meal_assistance_subsystem")
-    service_name = service_config[current_service]["name"]
+    current_service = cl.user_session.get("selected_service", "welcome_system")
+    service_name = SERVICE_INFO_DICT[current_service]["service_name"]
     await cl.Message(content=f"📍 当前正在使用：{service_name}").send()
 
 
@@ -131,10 +132,28 @@ async def switch_to_meal_service_app(action):
     cl.user_session.set("selected_service", "meal_assistance_service_app")
     await cl.Message(content="✅ 已切换到助餐服务应用").send()
 
+    
+@cl.action_callback("switch_to_real_time_vital_analyze_service")
+async def switch_to_real_time_vital_analyze_service(action):
+    cl.user_session.set("selected_service", "real_time_vital_analyze_service")
+    await cl.Message(content="✅ 已切换实时生命体征监测系统").send()
+
+@cl.action_callback("switch_to_merchant_service_system")
+async def switch_to_merchant_service_system(action):
+    cl.user_session.set("selected_service", "merchant_service_system")
+    await cl.Message(content="✅ 已切换商家服务系统").send()
+
+@cl.action_callback("switch_to_traditional_medical_service")
+async def switch_to_merchant_service_system(action):
+    cl.user_session.set("selected_service", "traditional_medical_service")
+    await cl.Message(content="✅ 已切换中医问诊").send()
+
 
 @cl.set_starters
 async def set_starters():
     # 返回通用的预设问题（所有用户都能看到）
+    # user = cl.user_session.get("user")
+    # print(f"user: ----------------------------------------------------------------------- {user}")
     return [
         cl.Starter(
             label="🏠 助餐子系统",
@@ -143,8 +162,26 @@ async def set_starters():
         cl.Starter(
             label="🍽️ 助餐服务应用",
             message="欢迎使用助餐服务应用:meal_assistance_service_app",
+        ),
+        cl.Starter(
+            label="🍽️ 实时生命体征监测系统",
+            message="欢迎实时生命体征监测系统:real_time_vital_analyze_service",
+        ),
+        cl.Starter(
+            label="🍽️ 商家服务系统",
+            message="欢迎商家服务系统:merchant_service_system",
+        ),
+        cl.Starter(
+            label="🍽️ 中医问诊",
+            message="欢迎进入中医问诊:traditional_medical_service",
         )
     ]
+
+import base64
+def encode_image_to_base64(image_path):
+    """将图片文件转换为base64编码"""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 
 @cl.data_layer
@@ -236,7 +273,7 @@ async def main(message: cl.Message):
     Args:
         message: 用户的消息，包含文本内容和可能的附件
     """
-    current_service = cl.user_session.get("selected_service", "meal_assistance_subsystem")
+    current_service = cl.user_session.get("selected_service", "welcome_system")
     
     user = cl.user_session.get("user")
     community = user.metadata.get("community") if user.metadata else None
@@ -250,12 +287,14 @@ async def main(message: cl.Message):
     
     # ========== 动态服务切换逻辑 ==========
     service_switched = False
-    for service_name, config in service_config.items():
-        identifier = config["identifier"]
+    for item in SERVICE_INFO_JSON:
+        service_url = item["service_id"]
+        service_name = item["service_name"]
+        identifier = item["identifier"]
         if identifier in user_text:
             user_text = user_text.replace(identifier, "").strip()
-            cl.user_session.set("selected_service", service_name)
-            await cl.Message(content=f"✅ 已切换到{config['name']}").send()
+            cl.user_session.set("selected_service", service_url)
+            await cl.Message(content=f"✅ 已切换到{service_name}").send()
             service_switched = True
             break
     
@@ -269,39 +308,91 @@ async def main(message: cl.Message):
     msg = cl.Message(content="")
     # 检查是否有附件
     if message.elements:
-        await cl.Message(content=f"收到您的消息: {user_text}").send()
-        
-        saved_files = []
-        
+        # await cl.Message(content=f"收到您的消息: {user_text}").send()
+        images = []
+        chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
+        print(f"chat_history: ------------------------------- {chat_history}")
+        chat_history = chat_history[1:-1][-6:] if chat_history else []
+        print(f"chat_history: ------------------------------- {chat_history}")
         # 处理每个附件
-        for element in message.elements:
-            if isinstance(element, cl.File):
-                # 获取原始文件名
-                original_filename = element.name
-                
-                # 构建保存路径
-                save_path = os.path.join(SAVE_DIR, original_filename)
-                
-                # 如果文件已存在，添加数字后缀
-                counter = 1
-                base_name, ext = os.path.splitext(original_filename)
-                while os.path.exists(save_path):
-                    new_filename = f"{base_name}_{counter}{ext}"
-                    save_path = os.path.join(SAVE_DIR, new_filename)
-                    counter += 1
-                
-                try:
-                    # 复制文件到目标目录
-                    shutil.copy2(element.path, save_path)
-                    saved_files.append(os.path.basename(save_path))
+        # 支持的图片格式
+        IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'}
+        try:
+            for element in message.elements:
+                if isinstance(element, cl.File):
+                    original_filename = element.name
+                    file_extension = Path(original_filename).suffix.lower()
                     
-                except Exception as e:
-                    await cl.Message(content=f"文件上传错误 {original_filename} : {str(e)}").send()
-        
-        if saved_files:
-            files_list = ", ".join(saved_files)
-            await cl.Message(content=f"收到文件 {files_list}").send()
-    
+                    # 只处理图片文件
+                    if file_extension in IMAGE_EXTENSIONS:
+                        try:
+                            # 读取图片文件
+                            with open(element.path, "rb") as image_file:
+                                image_content = image_file.read()
+                            
+                            # 转换为base64
+                            image_base64 = base64.b64encode(image_content).decode('utf-8')
+                            
+                            # 添加到列表
+                            images.append(image_base64)
+                            print(f"成功转换图片: {original_filename}")
+                            
+                        except Exception as e:
+                            await cl.Message(content=f"图片转换错误 {original_filename}: {str(e)}").send()
+                    else:
+                        print(f"跳过非图片文件: {original_filename}")
+            chat_history.append({"role": "user", "content": f"精简回答以下问题：{user_text}", "images": images})
+            param_dict = {
+                "question": user_text,
+                "messages": chat_history,
+                "service_name": current_service
+            }
+            print(f"param_dict: ----------------------- {param_dict}")
+            result = utils.request_url(
+                url=FUNCTION_CALL_API,
+                param_dict=param_dict,
+                timeout=120
+            )
+            segments = None
+            try:
+                segments = json.loads(result)
+                print("接受到json格式返回数据")
+            except Exception as e:
+                print("接受到字符串格式返回数据")
+                segments = utils.parse_content(content=result)
+            chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
+            chat_history = chat_history[1:][-6:]
+            result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=FUNCTION_CALL_API, service_name=current_service)
+        except Exception as e:
+            import traceback
+            error_msg = f"处理请求时发生错误: {str(e)}\n{traceback.format_exc()}"
+            await cl.Message(content=error_msg).send()
+        finally:
+            # ========== 动态创建Action按钮 ==========
+            current_service = cl.user_session.get("selected_service", "welcome_system")
+            current_service_name = SERVICE_INFO_DICT[current_service]["service_name"]
+            
+            # 使用循环创建除当前服务外的所有切换按钮
+            actions = []
+            for item in SERVICE_INFO_JSON:
+                service_url = item["service_id"]
+                service_name = item["service_name"]
+                action = item["action"]
+                emoji = item["emoji"]
+                if service_url != current_service:
+                    actions.append(
+                        cl.Action(
+                            name=action,
+                            value=action,
+                            payload={"service_url": service_url},
+                            label=f"{emoji} 切换到{service_name}"
+                        )
+                    )
+            
+            await cl.Message(
+                content=f"💡 当前使用: {current_service_name} | 快速操作：",
+                actions=actions
+            ).send()
     else:
         # 没有附件，只有文本
         print(f"username: ================ {user.identifier}")
@@ -319,6 +410,7 @@ async def main(message: cl.Message):
                     "messages": chat_history,
                     "service_name": current_service
                 }
+                print(f"param_dict: ----------------------- {param_dict}")
                 result = utils.request_url(
                     url=FUNCTION_CALL_API,
                     param_dict=param_dict
@@ -344,19 +436,23 @@ async def main(message: cl.Message):
             await cl.Message(content=error_msg).send()
         finally:
             # ========== 动态创建Action按钮 ==========
-            current_service = cl.user_session.get("selected_service", "meal_assistance_subsystem")
-            current_service_name = service_config[current_service]["name"]
+            current_service = cl.user_session.get("selected_service", "welcome_system")
+            current_service_name = SERVICE_INFO_DICT[current_service]["service_name"]
             
             # 使用循环创建除当前服务外的所有切换按钮
             actions = []
-            for service_url, config in service_config.items():
+            for item in SERVICE_INFO_JSON:
+                service_url = item["service_id"]
+                service_name = item["service_name"]
+                action = item["action"]
+                emoji = item["emoji"]
                 if service_url != current_service:
                     actions.append(
                         cl.Action(
-                            name=config["action"],
-                            value=config["action"],
+                            name=action,
+                            value=action,
                             payload={"service_url": service_url},
-                            label=f"{config['emoji']} 切换到{config['name']}"
+                            label=f"{emoji} 切换到{service_name}"
                         )
                     )
             
@@ -386,7 +482,7 @@ async def start():
         if result.get("success") and result.get("data"):
             tonggao_results = result.get("data", [])
     tonggao = tonggao_results[-1]["content"] if tonggao_results else "暂无！"
-    cl.user_session.set("selected_service", "meal_assistance_subsystem")
+    cl.user_session.set("selected_service", "welcome_system")
     
     # if user:
     #     try:
