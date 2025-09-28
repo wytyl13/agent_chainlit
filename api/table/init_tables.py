@@ -13,12 +13,17 @@ from sqlalchemy.exc import OperationalError
 
 from api.table.base.community_real_time_data import CommunityRealTimeData
 from api.table.base.user_data import UserData
-from api.table.start.menu_data import MenuData
-from api.table.start.order_food_data import OrderFoodData
-from api.table.base.merchant_management import MerchantData
+from api.table.meal_assistance_subsystem.menu_data import MenuData
+from api.table.meal_assistance_service_app.order_food_data import OrderFoodData
+from api.table.merchant_service_system.merchant_management import MerchantData
+from api.table.real_time_vital_analyze.sleep_statistics import SleepStatistics
+from api.table.real_time_vital_analyze.device_info import DeviceInfo
+from api.table.base.role_info import RoleInfo
+
 
 from agent.config.sql_config import SqlConfig
 from api.table.base.base import Base
+
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")

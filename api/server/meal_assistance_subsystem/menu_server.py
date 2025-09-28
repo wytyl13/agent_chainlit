@@ -26,7 +26,7 @@ import time
 
 from api.table.base.user_data import UserData
 from agent.provider.sql_provider import SqlProvider
-from api.table.start.menu_data import MenuData
+from api.table.meal_assistance_subsystem.menu_data import MenuData
 from tools.utils import Utils
 
 utils = Utils()

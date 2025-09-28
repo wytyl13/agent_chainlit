@@ -12,11 +12,13 @@ import os
 from api.server.base.community_real_time_data_server import CommunityRealTimeDataServer
 from api.server.base.user_data_server import UserDataServer
 from api.server.base.file_server import FileServer
-from api.server.start.menu_server import MenuDataServer
-from api.server.start.order_food_server import OrderFoodServer
-from api.server.base.merchant_management_server import MerchantManagementServer
-
-
+from api.server.meal_assistance_subsystem.menu_server import MenuDataServer
+from api.server.meal_assistance_service_app.order_food_server import OrderFoodServer
+from api.server.merchant_service_system.merchant_management_server import MerchantManagementServer
+from api.server.real_time_vital_analyze.sleep_statistics_server import SleepStatisticsServer
+from api.server.real_time_vital_analyze.device_info_server import DeviceInfoServer
+from api.server.base.service_info_server import ServiceInfoServer
+from api.server.base.role_info_server import RoleInfoServer
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
@@ -52,6 +54,10 @@ class AeroSenseMainServer:
         self.menu_service = MenuDataServer(self.sql_config_path)
         self.order_food_service = OrderFoodServer(self.sql_config_path)
         self.merchant_management_server = MerchantManagementServer(self.sql_config_path)
+        self.sleep_statistic_server = SleepStatisticsServer(self.sql_config_path)
+        self.device_info_server = DeviceInfoServer(self.sql_config_path)
+        self.service_info_server = ServiceInfoServer()
+        self.role_info_server = RoleInfoServer(self.sql_config_path)
         # 设置应用
         self._setup_middleware()
         self._setup_base_routes()
@@ -126,6 +132,18 @@ class AeroSenseMainServer:
 
         # 注册商家管理服务
         self.merchant_management_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.sleep_statistic_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.device_info_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.service_info_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.role_info_server.register_routes(self.app)
 
 
     def run(
