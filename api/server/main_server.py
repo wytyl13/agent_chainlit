@@ -9,13 +9,17 @@ from dotenv import load_dotenv, dotenv_values
 import os
 
 # 导入各个服务类
-from agent.llm_api.ollama_llm import OllamaLLM
-from agent.config.llm_config import LLMConfig
-from api.server.community_real_time_data_server import CommunityRealTimeDataServer
-from api.server.user_data_server import UserDataServer
-from api.server.function_call_server import FunctionCallServer
-from agent.tool.enhance_retrieval import EnhanceRetrieval
-from api.server.file_server import FileServer
+from api.server.base.community_real_time_data_server import CommunityRealTimeDataServer
+from api.server.base.user_data_server import UserDataServer
+from api.server.base.file_server import FileServer
+from api.server.meal_assistance_subsystem.menu_server import MenuDataServer
+from api.server.meal_assistance_service_app.order_food_server import OrderFoodServer
+from api.server.merchant_service_system.merchant_management_server import MerchantManagementServer
+from api.server.real_time_vital_analyze.sleep_statistics_server import SleepStatisticsServer
+from api.server.real_time_vital_analyze.device_info_server import DeviceInfoServer
+from api.server.base.service_info_server import ServiceInfoServer
+from api.server.base.role_info_server import RoleInfoServer
+from api.server.elder_school.teacher_info_server import TeacherInfoServer
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
@@ -46,18 +50,16 @@ class AeroSenseMainServer:
         # 初始化各个服务
         self.community_service = CommunityRealTimeDataServer(self.sql_config_path)
         self.user_service = UserDataServer(self.sql_config_path)
-        self.ollama_qwen_llm = OllamaLLM(config=LLMConfig.from_file(Path(OLLAMA_QWEN_CONFIG)))
-        self.enhance_qwen_admin = EnhanceRetrieval(
-            llm=self.ollama_qwen_llm, 
-            retrieval_flag=False, 
-            data_dir=DEFAULT_RETRIEVAL_DATA_PATH, 
-            index_dir=DEFAULT_RETRIEVAL_STORAGE_PATH,
-            embedding_model_path="/work/ai/agent/models"
-        )
-        self.function_call_server = FunctionCallServer(
-            enhance_retrieval=self.enhance_qwen_admin
-        )
+
         self.file_service = FileServer(str(ROOT_DIRECTORY / "api" / "source"))
+        self.menu_service = MenuDataServer(self.sql_config_path)
+        self.order_food_service = OrderFoodServer(self.sql_config_path)
+        self.merchant_management_server = MerchantManagementServer(self.sql_config_path)
+        self.sleep_statistic_server = SleepStatisticsServer(self.sql_config_path)
+        self.device_info_server = DeviceInfoServer(self.sql_config_path)
+        self.service_info_server = ServiceInfoServer()
+        self.role_info_server = RoleInfoServer(self.sql_config_path)
+        self.teacher_info = TeacherInfoServer(self.sql_config_path)
         # 设置应用
         self._setup_middleware()
         self._setup_base_routes()
@@ -67,22 +69,24 @@ class AeroSenseMainServer:
         """设置中间件"""
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=[
-                "https://localhost:8000",
-                "https://localhost:8002",
-                "https://localhost:8890",  
-                "https://127.0.0.1:8000", 
-                "https://127.0.0.1:8002",
-                "https://127.0.0.1:8890",
-                "https://1.71.15.121:8000",
-                "https://1.71.15.121:8002",
-                "https://1.71.15.121:8890",
-                "https://ai.shunxikj.com:8000", 
-                "https://ai.shunxikj.com:8002",
-                "https://ai.shunxikj.com:8890", 
-            ],
+            # allow_origins=[
+            #     "https://localhost:8000",
+            #     "https://localhost:8002",
+            #     "https://localhost:8890",  
+            #     "https://127.0.0.1:8000", 
+            #     "https://127.0.0.1:8002",
+            #     "https://127.0.0.1:8890",
+            #     "https://1.71.15.121:8000",
+            #     "https://1.71.15.121:8002",
+            #     "https://1.71.15.121:8890",
+            #     "https://ai.shunxikj.com:8000", 
+            #     "https://ai.shunxikj.com:8002",
+            #     "https://ai.shunxikj.com:8890", 
+            # ],
+            allow_origins=["*"],
+            allow_methods=["*"],
             allow_credentials=True,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            # allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             allow_headers=["*"],
         )
         
@@ -119,11 +123,33 @@ class AeroSenseMainServer:
         # 注册用户服务路由
         self.user_service.register_routes(self.app)
         
-        # 注册工具调用服务路由
-        self.function_call_server.register_routes(self.app)
-
         # 注意文件服务路由
         self.file_service.register_routes(self.app)
+
+        # 注册菜单服务
+        self.menu_service.register_routes(self.app)
+
+        # 注册菜品订单服务
+        self.order_food_service.register_routes(self.app)
+
+        # 注册商家管理服务
+        self.merchant_management_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.sleep_statistic_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.device_info_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.service_info_server.register_routes(self.app)
+
+        # 注册睡眠数据统计服务
+        self.role_info_server.register_routes(self.app)
+
+        # 注册教师信息管理服务
+        self.teacher_info.register_routes(self.app)
+
 
     def run(
         self, 

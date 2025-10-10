@@ -30,7 +30,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 
-from api.table.user_data import UserData
+from api.table.base.user_data import UserData
 from agent.llm_api.ollama_llm import OllamaLLM
 from agent.config.llm_config import LLMConfig
 from agent.tool.direct_llm_community_ai_admin import DirectLLMCommunityAiAdmin
@@ -41,7 +41,7 @@ from agent.tool.planning_agent_community_ai_admin import PlanningAgentCommunityA
 from agent.tool.planning_agent_community_ai_user import PlanningAgentCommunityAiUser
 from agent.tool.enhance_retrieval import EnhanceRetrieval
 from agent.tool.handle_shixun_tonggao import HandleTongzhiTonggao
-from api.table.community_real_time_data import CommunityRealTimeData
+from api.table.base.community_real_time_data import CommunityRealTimeData
 from agent.tool.water_machine_api import WaterMachineApi
 from agent.config.sql_config import SqlConfig
 

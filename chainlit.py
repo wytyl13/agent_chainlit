@@ -34,7 +34,7 @@ project_root = str(ROOT_DIRECTORY)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from api.table.user_data import UserData
+from api.table.base.user_data import UserData
 from agent.llm_api.ollama_llm import OllamaLLM
 from agent.config.llm_config import LLMConfig
 from agent.tool.direct_llm_community_ai_admin import DirectLLMCommunityAiAdmin
@@ -45,26 +45,37 @@ from agent.tool.planning_agent_community_ai_admin import PlanningAgentCommunityA
 from agent.tool.planning_agent_community_ai_user import PlanningAgentCommunityAiUser
 from agent.tool.enhance_retrieval import EnhanceRetrieval
 from agent.tool.handle_shixun_tonggao import HandleTongzhiTonggao
-from api.table.community_real_time_data import CommunityRealTimeData
+from api.table.base.community_real_time_data import CommunityRealTimeData
 from agent.tool.water_machine_api import WaterMachineApi
 from agent.config.sql_config import SqlConfig
 from tag_processor import TagProcessor
 
+
 tag_process = TagProcessor()
 environment = dotenv_values(str(ROOT_DIRECTORY / ".env"))
 print(environment)
-API_PREFIX = os.getenv("API_PREFIX")
-START_SERVICE_API = f"{API_PREFIX}/chat/function_call/start"
+SQL_API_PREFIX = os.getenv("SQL_API_PREFIX")
+FUNCTION_CALL_API_PREFIX = os.getenv("FUNCTION_CALL_API_PREFIX")
+START_SERVICE_API = f"{FUNCTION_CALL_API_PREFIX}/chat/function_call/start"
+
+FUNCTION_CALL_API = f"{FUNCTION_CALL_API_PREFIX}/chat/function_call"
+SUGGESTION_API = f"{FUNCTION_CALL_API_PREFIX}/chat/suggestion"
+
 
 SQL_CONFIG_PATH = environment["SQL_CONFIG_PATH"] if "SQL_CONFIG_PATH" in environment else None
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml") if SQL_CONFIG_PATH is None else SQL_CONFIG_PATH
 sql_config = SqlConfig.from_file(SQL_CONFIG_PATH)
+
 
 # 在文件顶部添加全局变量
 audio_buffer = None
 
 SAVE_DIR = str(ROOT_DIRECTORY / "upload_dir")
 
+# SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={"username": "shunxikeji"})
+SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={})
+print(SERVICE_INFO_JSON)
+SERVICE_INFO_DICT = {item['service_id']: {'service_name': item['service_name'], 'emoji': item['emoji'], 'action': item['action'], 'identifier': f":{item['identifier']}"} for item in SERVICE_INFO_JSON}
 
 
 def extract_and_clean_tool_info(text):
@@ -84,185 +95,105 @@ def extract_and_clean_tool_info(text):
     return clean_text, tool_name
 
 
-# 功能菜单----------------------------------------------------------------------------------------------
-async def create_function_menu(user_role, community):
-    """根据用户角色创建不同的功能菜单"""
+def create_service_action_callbacks():
+    """动态为每个服务创建Action回调函数"""
+    for item in SERVICE_INFO_JSON:
+        service_url = item["service_id"]
+        action = item["action"]
+        service_name = item["service_name"]
+        
+        # 创建回调函数
+        async def switch_service_callback(action, service_url=service_url, service_name=service_name):
+            cl.user_session.set("selected_service", service_url)
+            await cl.Message(content=f"✅ 已切换到{service_name}").send()
+        
+        # 注册回调函数
+        cl.action_callback(action)(switch_service_callback)
+
+
+# 调用函数来注册所有回调
+create_service_action_callbacks()
+
+
+# 3. 添加查看当前服务的回调
+@cl.action_callback("show_current_service")
+async def show_current_service(action):
+    current_service = cl.user_session.get("selected_service", "welcome_system")
+    service_name = SERVICE_INFO_DICT[current_service]["service_name"]
+    await cl.Message(content=f"📍 当前正在使用：{service_name}").send()
+
+
+@cl.action_callback("switch_to_meal_subsystem")
+async def switch_to_meal_subsystem(action):
+    cl.user_session.set("selected_service", "meal_assistance_subsystem")
+    await cl.Message(content="✅ 已切换到助餐服务子系统").send()
+
+
+@cl.action_callback("switch_to_meal_service_app")
+async def switch_to_meal_service_app(action):
+    cl.user_session.set("selected_service", "meal_assistance_service_app")
+    await cl.Message(content="✅ 已切换到助餐服务应用").send()
+
     
-    if user_role == "admin":
-        # 管理员功能菜单
-        actions = [
-            cl.Action(
-                name="publish_notice",
-                payload={"action": "publish_notice"},
-                label="📢 发布通告"
-            ),
-            cl.Action(
-                name="view_statistics", 
-                payload={"action": "view_statistics"},
-                label="📊 数据统计"
-            ),
-            cl.Action(
-                name="user_management",
-                payload={"action": "user_management"},
-                label="👥 用户管理"
-            ),
-            cl.Action(
-                name="system_settings",
-                payload={"action": "system_settings"},
-                label="⚙️ 系统设置"
-            )
-        ]
-    else:
-        # 普通用户功能菜单
-        actions = [
-            cl.Action(
-                name="service_inquiry",
-                payload={"action": "service_inquiry"},
-                label="🏥 服务咨询"
-            ),
-            cl.Action(
-                name="online_shopping",
-                payload={"action": "online_shopping"},
-                label="🛒 在线购物"
-            ),
-            cl.Action(
-                name="food_service",
-                payload={"action": "food_service"},
-                label="🍽️ 餐饮服务"
-            ),
-            cl.Action(
-                name="course_booking",
-                payload={"action": "course_booking"},
-                label="📚 课程预约"
-            ),
-            cl.Action(
-                name="subsidy_inquiry",
-                payload={"action": "subsidy_inquiry"},
-                label="💰 补贴查询"
-            ),
-            cl.Action(
-                name="show_menu",
-                payload={"action": "show_menu"},
-                label="📋 主菜单"
-            )
-        ]
-    
-    return actions
+@cl.action_callback("switch_to_real_time_vital_analyze_service")
+async def switch_to_real_time_vital_analyze_service(action):
+    cl.user_session.set("selected_service", "real_time_vital_analyze_service")
+    await cl.Message(content="✅ 已切换实时生命体征监测系统").send()
+
+@cl.action_callback("switch_to_merchant_service_system")
+async def switch_to_merchant_service_system(action):
+    cl.user_session.set("selected_service", "merchant_service_system")
+    await cl.Message(content="✅ 已切换商家服务系统").send()
+
+@cl.action_callback("switch_to_traditional_medical_service")
+async def switch_to_merchant_service_system(action):
+    cl.user_session.set("selected_service", "traditional_medical_service")
+    await cl.Message(content="✅ 已切换中医问诊").send()
 
 
-@cl.on_settings_update
-async def setup_menu(settings):
-    """处理菜单选择"""
-    selected_function = settings.get("quick_function")
-    
-    if selected_function == "📢 发布通告":
-        await cl.Message(content="📢 请输入您要发布的通告内容：").send()
-    elif selected_function == "📊 数据统计":
-        await cl.Message(content="📊 正在为您生成统计数据...").send()
-    elif selected_function == "👥 用户管理":
-        await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
-    elif selected_function == "⚙️ 系统设置":
-        await cl.Message(content="⚙️ 系统设置：\n1. 基础设置\n2. 安全设置\n3. 通知设置\n4. 备份设置").send()
-    elif selected_function == "🏥 服务咨询":
-        await cl.Message(content="🏥 服务咨询：请问您需要咨询什么服务？\n1. 医疗健康\n2. 生活服务\n3. 娱乐活动\n4. 其他服务").send()
-    elif selected_function == "🛒 在线购物":
-        await cl.Message(content="🛒 欢迎来到在线购物！请选择商品类别：\n1. 生活用品\n2. 食品饮料\n3. 健康用品\n4. 其他商品").send()
-    elif selected_function == "🍽️ 餐饮服务":
-        await cl.Message(content="🍽️ 餐饮服务：\n1. 查看今日菜单\n2. 预订餐食\n3. 营养咨询\n4. 特殊饮食需求").send()
-    elif selected_function == "📚 课程预约":
-        await cl.Message(content="📚 课程预约：\n1. 查看可预约课程\n2. 我的课程安排\n3. 取消预约\n4. 课程反馈").send()
-    elif selected_function == "💰 补贴查询":
-        await cl.Message(content="💰 补贴查询：\n1. 查看可申请补贴\n2. 补贴申请状态\n3. 历史补贴记录\n4. 补贴政策咨询").send()
+@cl.action_callback("switch_to_eldly_school_service")
+async def switch_to_merchant_service_system(action):
+    cl.user_session.set("selected_service", "eldly_school_service")
+    await cl.Message(content="✅ 已切换老年大学").send()
 
 
-def create_chat_settings(user_role):
-    """创建固定的功能菜单设置面板"""
-    
-    if user_role == "admin":
-        return cl.ChatSettings([
-            cl.input_widget.Select(
-                id="quick_function",
-                label="🎯 快捷功能",
-                values=[
-                    "选择功能...",
-                    "📢 发布通告", 
-                    "📊 数据统计",
-                    "👥 用户管理", 
-                    "⚙️ 系统设置"
-                ],
-                initial_index=0,
-            )
-        ])
-    else:
-        return cl.ChatSettings([
-            cl.input_widget.Select(
-                id="quick_function", 
-                label="🎯 快捷功能",
-                values=[
-                    "选择功能...",
-                    "🏥 服务咨询",
-                    "🛒 在线购物", 
-                    "🍽️ 餐饮服务",
-                    "📚 课程预约",
-                    "💰 补贴查询"
-                ],
-                initial_index=0,
-            )
-        ])
+@cl.set_starters
+async def set_starters():
+    # 返回通用的预设问题（所有用户都能看到）
+    # user = cl.user_session.get("user")
+    # print(f"user: ----------------------------------------------------------------------- {user}")
+    return [
+        cl.Starter(
+            label="🏠 助餐子系统",
+            message="欢迎使用助餐子系统:meal_assistance_subsystem",
+        ),
+        cl.Starter(
+            label="🍽️ 助餐服务应用",
+            message="欢迎使用助餐服务应用:meal_assistance_service_app",
+        ),
+        cl.Starter(
+            label="🍽️ 实时生命体征监测系统",
+            message="欢迎实时生命体征监测系统:real_time_vital_analyze_service",
+        ),
+        cl.Starter(
+            label="🍽️ 商家服务系统",
+            message="欢迎商家服务系统:merchant_service_system",
+        ),
+        cl.Starter(
+            label="🍽️ 中医问诊",
+            message="欢迎进入中医问诊:traditional_medical_service",
+        ),
+        cl.Starter(
+            label="🍽️ 老年大学",
+            message="欢迎进入老年大学:eldly_school_service",
+        )
+    ]
 
-
-# 处理功能菜单点击事件
-@cl.action_callback("publish_notice")
-async def on_publish_notice(action):
-    await cl.Message(content="📢 请输入您要发布的通告内容：").send()
-
-
-@cl.action_callback("manage_services") 
-async def on_manage_services(action):
-    await cl.Message(content="🛠️ 服务管理功能已启动，请选择要管理的服务类型：\n1. 医疗服务\n2. 生活服务\n3. 娱乐服务").send()
-
-
-@cl.action_callback("view_statistics")
-async def on_view_statistics(action):
-    await cl.Message(content="📊 正在为您生成统计数据...").send()
-    # 这里可以调用你的数据统计功能
-    # 例如：生成图表、调用数据中心等
-
-
-@cl.action_callback("user_management")
-async def on_user_management(action):
-    await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
-
-
-@cl.action_callback("system_settings")
-async def on_system_settings(action):
-    await cl.Message(content="⚙️ 系统设置：\n1. 基础设置\n2. 安全设置\n3. 通知设置\n4. 备份设置").send()
-
-
-@cl.action_callback("service_inquiry")
-async def on_service_inquiry(action):
-    await cl.Message(content="🏥 服务咨询：请问您需要咨询什么服务？\n1. 医疗健康\n2. 生活服务\n3. 娱乐活动\n4. 其他服务").send()
-
-@cl.action_callback("online_shopping")
-async def on_online_shopping(action):
-    await cl.Message(content="🛒 欢迎来到在线购物！请选择商品类别：\n1. 生活用品\n2. 食品饮料\n3. 健康用品\n4. 其他商品").send()
-
-@cl.action_callback("food_service")
-async def on_food_service(action):
-    await cl.Message(content="🍽️ 餐饮服务：\n1. 查看今日菜单\n2. 预订餐食\n3. 营养咨询\n4. 特殊饮食需求").send()
-
-@cl.action_callback("course_booking")
-async def on_course_booking(action):
-    await cl.Message(content="📚 课程预约：\n1. 查看可预约课程\n2. 我的课程安排\n3. 取消预约\n4. 课程反馈").send()
-
-@cl.action_callback("subsidy_inquiry")
-async def on_subsidy_inquiry(action):
-    await cl.Message(content="💰 补贴查询：\n1. 查看可申请补贴\n2. 补贴申请状态\n3. 历史补贴记录\n4. 补贴政策咨询").send()
-
-@cl.action_callback("community_info")
-async def on_community_info(action):
-    await cl.Message(content="🏘️社区信息：\n1. 社区公告\n2. 活动安排\n3. 设施状态\n4. 联系方式").send()
-# 功能菜单----------------------------------------------------------------------------------------------
+import base64
+def encode_image_to_base64(image_path):
+    """将图片文件转换为base64编码"""
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 
 @cl.data_layer
@@ -280,15 +211,13 @@ async def tool_1():
     return "Response from the tool!"
 
 
-
 @cl.password_auth_callback
 def auth_callback(username: str, password: str) -> Optional[cl.User]:
-    
     # 如果是静态资源请求，直接跳过认证（这是一个workaround）
     if not username or not password:
         return None
     try:
-        url = f"{API_PREFIX}/api/user_data"
+        url = f"{SQL_API_PREFIX}/api/user_data"
         params = {"username": username}
         response = requests.get(url, params=params, timeout=10)
         if response.status_code == 200:
@@ -328,58 +257,6 @@ async def on_audio_chunk(chunk: cl.InputAudioChunk):
         audio_buffer.write(chunk.data)
 
 
-async def create_menu_cards():
-    """使用 CustomElement 创建菜单卡片"""
-    
-    # 菜品数据
-    dishes = [
-        {
-            "dish_id": "001",
-            "dish_name": "宫保鸡丁",
-            "category": "川菜",
-            "price": "¥28",
-            "ingredients": "鸡肉、花生、青椒、红椒",
-            "nutrition": "高蛋白、维生素C",
-            "rating": "4.8",
-            "availability": "有货",
-            "description": "经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香"
-        },
-        {
-            "dish_id": "002", 
-            "dish_name": "红烧狮子头",
-            "category": "淮扬菜",
-            "price": "¥35",
-            "ingredients": "猪肉、马蹄、冬菇、青菜",
-            "nutrition": "高蛋白、膳食纤维",
-            "rating": "4.6",
-            "availability": "有货",
-            "description": "淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富"
-        },
-        {
-            "dish_id": "003",
-            "dish_name": "清蒸鲈鱼",
-            "category": "粤菜",
-            "price": "¥42",
-            "ingredients": "新鲜鲈鱼、蒸鱼豉油、葱丝",
-            "nutrition": "高蛋白、低脂肪、DHA",
-            "rating": "4.9",
-            "availability": "缺货",
-            "description": "粤式经典，鱼肉鲜嫩，保持原汁原味"
-        }
-    ]
-    
-    # 创建自定义元素
-    menu_element = cl.CustomElement(
-        name="MenuCards",
-        props={"dishes": dishes}
-    )
-    
-    await cl.Message(
-        content="🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作",
-        elements=[menu_element]
-    ).send()
-
-
 @cl.on_audio_end
 async def on_audio_end(audio: cl.Audio):
     """处理录音结束"""
@@ -400,51 +277,6 @@ async def on_chat_resume(thread):
     pass
 
 
-async def show_confirmation_popup(content="确认此操作吗？"):
-    """类似弹窗的确认对话框"""
-    try:
-        # 使用AskUserMessage创建类似弹窗的体验
-        res = await cl.AskUserMessage(
-            content=f"⚠️ **确认操作**\n\n{content}\n\n请输入 **确认** 或 **取消**：",
-            timeout=30
-        ).send()
-        
-        if res:
-            user_input = res['output'].lower().strip()
-            if '确认' in user_input or 'yes' in user_input or 'y' == user_input:
-                await cl.Message(content="✅ 操作已确认").send()
-                return True
-            else:
-                await cl.Message(content="❌ 操作已取消").send()
-                return False
-        else:
-            await cl.Message(content="⏰ 操作超时，已自动取消").send()
-            return False
-            
-    except Exception as e:
-        await cl.Message(content="❌ 确认过程出错，操作已取消").send()
-        return False
-
-
-async def show_confirmation(content="确认此操作吗？"):
-    actions = [
-        cl.Action(name="continue", payload={"value": "确认"}, label="🟢 确认操作"),
-        cl.Action(name="cancel", payload={"value": "取消"}, label="🔴 取消操作")
-    ]
-    
-    res = await cl.AskActionMessage(
-        content=f"⚠️ **操作确认**\n\n{content}",
-        actions=actions
-    ).send()
-    
-    
-    if res and res.get("payload").get("value") == "确认":
-        # 调用确认接口
-        await cl.Message(
-            content="确认!",
-        ).send()
-
-
 @cl.on_message  
 async def main(message: cl.Message):
     """
@@ -453,18 +285,10 @@ async def main(message: cl.Message):
     Args:
         message: 用户的消息，包含文本内容和可能的附件
     """
-    # 处理菜单按钮点击
-    if message.content.startswith("###MENU_ACTION###"):
-        action_id = message.content.replace("###MENU_ACTION###", "")
-        
-        # 根据action_id处理不同功能
-        if action_id == "publish_notice":
-            await cl.Message(content="📢 请输入您要发布的通告内容：").send()
-        elif action_id == "view_statistics":
-            await cl.Message(content="📊 正在为您生成统计数据...").send()
-        elif action_id == "user_management":
-            await cl.Message(content="👥 用户管理功能：\n1. 查看用户列表\n2. 添加新用户\n3. 修改用户权限\n4. 删除用户").send()
-    
+    current_service = cl.user_session.get("selected_service", "welcome_system")
+    print("!!!!!!!!!!!!!!!!!!!!!!!")
+    print(current_service)
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     
     user = cl.user_session.get("user")
     community = user.metadata.get("community") if user.metadata else None
@@ -474,42 +298,116 @@ async def main(message: cl.Message):
     
     # 获取用户的文本内容
     user_text = message.content
+    print(f"user_text: ---------------------------------------------- {user_text}")
+    
+    # ========== 动态服务切换逻辑 ==========
+    service_switched = False
+    for item in SERVICE_INFO_JSON:
+        service_url = item["service_id"]
+        service_name = item["service_name"]
+        identifier = item["identifier"]
+        if identifier in user_text:
+            user_text = user_text.replace(identifier, "").strip()
+            cl.user_session.set("selected_service", service_url)
+            await cl.Message(content=f"✅ 已切换到{service_name}").send()
+            service_switched = True
+            break
+    
+    if not service_switched:
+        print(f"继续使用当前服务: {current_service}")
+    
+    # 如果用户只是切换服务而没有其他内容，就不需要继续处理
+    if not user_text.strip():
+        return
+    
     msg = cl.Message(content="")
     # 检查是否有附件
     if message.elements:
-        await cl.Message(content=f"收到您的消息: {user_text}").send()
-        
-        saved_files = []
-        
+        # await cl.Message(content=f"收到您的消息: {user_text}").send()
+        images = []
+        chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
+        print(f"chat_history: ------------------------------- {chat_history}")
+        chat_history = chat_history[1:-1][-6:] if chat_history else []
+        print(f"chat_history: ------------------------------- {chat_history}")
         # 处理每个附件
-        for element in message.elements:
-            if isinstance(element, cl.File):
-                # 获取原始文件名
-                original_filename = element.name
-                
-                # 构建保存路径
-                save_path = os.path.join(SAVE_DIR, original_filename)
-                
-                # 如果文件已存在，添加数字后缀
-                counter = 1
-                base_name, ext = os.path.splitext(original_filename)
-                while os.path.exists(save_path):
-                    new_filename = f"{base_name}_{counter}{ext}"
-                    save_path = os.path.join(SAVE_DIR, new_filename)
-                    counter += 1
-                
-                try:
-                    # 复制文件到目标目录
-                    shutil.copy2(element.path, save_path)
-                    saved_files.append(os.path.basename(save_path))
+        # 支持的图片格式
+        IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'}
+        try:
+            for element in message.elements:
+                if isinstance(element, cl.File):
+                    original_filename = element.name
+                    file_extension = Path(original_filename).suffix.lower()
                     
-                except Exception as e:
-                    await cl.Message(content=f"文件上传错误 {original_filename} : {str(e)}").send()
-        
-        if saved_files:
-            files_list = ", ".join(saved_files)
-            await cl.Message(content=f"收到文件 {files_list}").send()
-    
+                    # 只处理图片文件
+                    if file_extension in IMAGE_EXTENSIONS:
+                        try:
+                            # 读取图片文件
+                            with open(element.path, "rb") as image_file:
+                                image_content = image_file.read()
+                            
+                            # 转换为base64
+                            image_base64 = base64.b64encode(image_content).decode('utf-8')
+                            
+                            # 添加到列表
+                            images.append(image_base64)
+                            print(f"成功转换图片: {original_filename}")
+                            
+                        except Exception as e:
+                            await cl.Message(content=f"图片转换错误 {original_filename}: {str(e)}").send()
+                    else:
+                        print(f"跳过非图片文件: {original_filename}")
+            chat_history.append({"role": "user", "content": f"精简回答以下问题：{user_text}", "images": images})
+            param_dict = {
+                "question": user_text,
+                "messages": chat_history,
+                "service_name": current_service
+            }
+            print(f"param_dict: ----------------------- {param_dict}")
+            result = utils.request_url(
+                url=FUNCTION_CALL_API,
+                param_dict=param_dict,
+                timeout=120
+            )
+            segments = None
+            try:
+                segments = json.loads(result)
+                print("接受到json格式返回数据")
+            except Exception as e:
+                print("接受到字符串格式返回数据")
+                segments = utils.parse_content(content=result)
+            chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
+            chat_history = chat_history[1:][-6:]
+            result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=FUNCTION_CALL_API, service_name=current_service)
+        except Exception as e:
+            import traceback
+            error_msg = f"处理请求时发生错误: {str(e)}\n{traceback.format_exc()}"
+            await cl.Message(content=error_msg).send()
+        finally:
+            # ========== 动态创建Action按钮 ==========
+            current_service = cl.user_session.get("selected_service", "welcome_system")
+            current_service_name = SERVICE_INFO_DICT[current_service]["service_name"]
+            
+            # 使用循环创建除当前服务外的所有切换按钮
+            actions = []
+            for item in SERVICE_INFO_JSON:
+                service_url = item["service_id"]
+                service_name = item["service_name"]
+                action = item["action"]
+                emoji = item["emoji"]
+                if service_url != current_service:
+                    actions.append(
+                        cl.Action(
+                            name=action,
+                            value=action,
+                            payload={"service_url": service_url},
+                            label=f"{emoji} 切换到{service_name}"
+                        )
+                    )
+            
+            await cl.Message(
+                content=f"💡 当前使用: {current_service_name} | 快速操作：",
+                actions=actions
+            ).send()
     else:
         # 没有附件，只有文本
         print(f"username: ================ {user.identifier}")
@@ -530,17 +428,21 @@ async def main(message: cl.Message):
         try:
             if role == "user":
                 msg = cl.Message(content="")
-                content_buffer = ""
                 param_dict = {
                     "question": user_text,
-                    "messages": chat_history
+                    "messages": chat_history,
+                    "service_name": cl.user_session.get("selected_service", "welcome_system")
                 }
+                print(f"param_dict: ----------------------- {param_dict}")
                 result = utils.request_url(
-                    url=START_SERVICE_API,
+                    url=FUNCTION_CALL_API,
                     param_dict=param_dict
                 )
+                print("111================================111")
+                print(param_dict)
+                print("111================================111")
                 print("================================")
-                print(result)
+                print(f"result: ------------------------------------{result}")
                 print("================================")
                 segments = None
                 try:
@@ -549,9 +451,9 @@ async def main(message: cl.Message):
                 except Exception as e:
                     print("接受到字符串格式返回数据")
                     segments = utils.parse_content(content=result)
-                chat_history.append({"role": "user", "content": user_text})
-                chat_history.append({"role": "assistant", "content": result})
-                result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=START_SERVICE_API)
+                chat_history = cl.chat_context.to_openai() if cl.chat_context.to_openai() else []
+                chat_history = chat_history[1:][-6:]
+                result_seg = await tag_process.process_segments(segments=segments, chat_history=chat_history, function_call_url=FUNCTION_CALL_API, service_name=current_service)
             else:
                 await msg.stream_token("暂未开通")
         except Exception as e:
@@ -559,9 +461,32 @@ async def main(message: cl.Message):
             error_msg = f"处理请求时发生错误: {str(e)}\n{traceback.format_exc()}"
             await cl.Message(content=error_msg).send()
         finally:
-            # 可以在这里添加会话提示功能。每次对话回复完成以后都添加
-            # 将会话提示以按钮的形式输出
-            pass
+            # ========== 动态创建Action按钮 ==========
+            current_service = cl.user_session.get("selected_service", "welcome_system")
+            current_service_name = SERVICE_INFO_DICT[current_service]["service_name"]
+            
+            # 使用循环创建除当前服务外的所有切换按钮
+            actions = []
+            for item in SERVICE_INFO_JSON:
+                service_url = item["service_id"]
+                service_name = item["service_name"]
+                action = item["action"]
+                emoji = item["emoji"]
+                if service_url != current_service:
+                    actions.append(
+                        cl.Action(
+                            name=action,
+                            value=action,
+                            payload={"service_url": service_url},
+                            label=f"{emoji} 切换到{service_name}"
+                        )
+                    )
+            
+            await cl.Message(
+                content=f"💡 当前使用: {current_service_name} | 快速操作：",
+                actions=actions
+            ).send()
+            
 
 
 @cl.on_chat_start
@@ -575,7 +500,8 @@ async def start():
     cl.user_session.set("audio_enabled", True)
     # 获取当前用户
     user = cl.user_session.get("user")
-    url = f"{API_PREFIX}/api/community_real_time_data"
+    url = f"{SQL_API_PREFIX}/api/community_real_time_data"
+    url += "?username=" + user.identifier
     response = requests.get(url, timeout=10)
     tonggao_results = []
     if response.status_code == 200:
@@ -583,44 +509,42 @@ async def start():
         if result.get("success") and result.get("data"):
             tonggao_results = result.get("data", [])
     tonggao = tonggao_results[-1]["content"] if tonggao_results else "暂无！"
+    # cl.user_session.set("selected_service", "welcome_system")
     
-    if user:
-        try:
-            # 从用户元数据中获取角色，如果没有则查询数据库
-            user_role = user.metadata.get("role") if user.metadata else None
-            community = user.metadata.get("community") if user.metadata else None
+    # if user:
+    #     try:
+    #         # 从用户元数据中获取角色，如果没有则查询数据库
+    #         user_role = user.metadata.get("role") if user.metadata else None
+    #         community = user.metadata.get("community") if user.metadata else None
             
-            # 添加这两行代码：
-            chat_settings = create_chat_settings(user_role)
-            await chat_settings.send()
             
-            # 根据角色显示不同内容
-            if user_role == "admin":
-                message_content = f"""
-                {community}超管，您好！我是你的社区智能体助手，我可以帮你发布时讯消息、通告等其它操作！
-                💬 使用方式：
-                📝 文本输入：直接在对话框中输入您的问题
-                🎤 语音输入：按住麦克风按钮进行语音录入
-                📎 文件上传：点击输入框旁的附件按钮上传文件
-                提示：首次使用语音功能时，浏览器可能会询问麦克风权限，请点击"允许"。
-                """
-            else:  # user 或其他角色
-                message_content = f"""
-                尊敬的{community}用户，您好！我是你的社区智能体助手，你可以咨询我任何问题！
-                【通告】📢{tonggao}
-                💬 使用方式：
-                📝 文本输入：直接在对话框中输入您的问题
-                📎 文件上传：点击输入框旁的附件按钮上传文件
-                🎤 语音输入：按住麦克风按钮进行语音录入
-                提示：首次使用语音功能时，浏览器可能会询问麦克风权限，请点击"允许"。
-                """
+    #         # 根据角色显示不同内容
+    #         if user_role == "admin":
+    #             message_content = f"""
+    #             {community}超管，您好！我是你的社区智能体助手，我可以帮你发布时讯消息、通告等其它操作！
+    #             💬 使用方式：
+    #             📝 文本输入：直接在对话框中输入您的问题
+    #             🎤 语音输入：按住麦克风按钮进行语音录入
+    #             📎 文件上传：点击输入框旁的附件按钮上传文件
+    #             提示：首次使用语音功能时，浏览器可能会询问麦克风权限，请点击"允许"。
+    #             """
+    #         else:  # user 或其他角色
+    #             message_content = f"""
+    #             尊敬的{community}用户，您好！我是你的社区智能体助手，你可以咨询我任何问题！
+    #             【通告】📢{tonggao}
+    #             💬 使用方式：
+    #             📝 文本输入：直接在对话框中输入您的问题
+    #             📎 文件上传：点击输入框旁的附件按钮上传文件
+    #             🎤 语音输入：按住麦克风按钮进行语音录入
+    #             提示：首次使用语音功能时，浏览器可能会询问麦克风权限，请点击"允许"。
+    #             """
                 
-            await cl.Message(content=message_content).send()
+    #         await cl.Message(content=message_content).send()
                 
-        except Exception as e:
-            # 数据库查询失败，显示默认消息
-            print(f"{str(e)}")
-            await cl.Message(content=f"{community}超管，您好！您可以直接上传文件或纯文字到会话框！").send()
-    else:
-        # 用户未登录，显示默认消息
-        await cl.Message(content=f"{community}超管，您好！您可以直接上传文件或纯文字到会话框！").send()
+    #     except Exception as e:
+    #         # 数据库查询失败，显示默认消息
+    #         print(f"{str(e)}")
+    #         await cl.Message(content=f"{community}超管，您好！您可以直接上传文件或纯文字到会话框！").send()
+    # else:
+    #     # 用户未登录，显示默认消息
+    #     await cl.Message(content=f"{community}超管，您好！您可以直接上传文件或纯文字到会话框！").send()

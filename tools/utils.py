@@ -18,6 +18,7 @@ from enum import Enum
 import jieba
 import numpy as np
 import requests
+import json
 
 from agent.utils.log import Logger
 from rich.console import Console
@@ -34,6 +35,8 @@ TAG_PATTERNS = {
     'confirm': r'<confirm(?:\s+[^>]*)?>(.*?)</confirm>',
     'image': r'<image(?:\s+[^>]*)?>(.*?)</image>', 
     'preview': r'<preview(?:\s+[^>]*)?>(.*?)</preview>',
+    'suggestions': r'<suggestions(?:\s+[^>]*)?>(.*?)</suggestions>',
+    'real_time_vital': r'<real_time_vital(?:\s+[^>]*)?>(.*?)</real_time_vital>',
 }
 
 
@@ -68,7 +71,140 @@ class Utils:
         return error
 
 
-    def request_url(self, url: str, param_dict: Dict, method: Optional[str] = "POST"):
+    def chinese_to_pinyin(self, text):
+        """
+        将汉语转换为全拼的简单函数
+        注意：这是一个基础版本，对于多音字可能不够准确
+        建议在生产环境中使用 pypinyin 库
+        """
+        # 简化的拼音映射表（仅包含常用汉字）
+        pinyin_dict = {
+            # 常用汉字拼音映射
+            '一': 'yi', '二': 'er', '三': 'san', '四': 'si', '五': 'wu', 
+            '六': 'liu', '七': 'qi', '八': 'ba', '九': 'jiu', '十': 'shi',
+            '零': 'ling', '百': 'bai', '千': 'qian', '万': 'wan',
+            
+            # 姓名常用字
+            '张': 'zhang', '王': 'wang', '李': 'li', '赵': 'zhao', '刘': 'liu',
+            '陈': 'chen', '杨': 'yang', '黄': 'huang', '周': 'zhou', '吴': 'wu',
+            '徐': 'xu', '孙': 'sun', '马': 'ma', '朱': 'zhu', '胡': 'hu',
+            '林': 'lin', '郭': 'guo', '何': 'he', '高': 'gao', '罗': 'luo',
+            
+            # 名字常用字
+            '明': 'ming', '华': 'hua', '建': 'jian', '文': 'wen', '军': 'jun',
+            '志': 'zhi', '勇': 'yong', '伟': 'wei', '强': 'qiang', '磊': 'lei',
+            '超': 'chao', '鹏': 'peng', '涛': 'tao', '松': 'song', '浩': 'hao',
+            '亮': 'liang', '政': 'zheng', '谦': 'qian', '诚': 'cheng', '先': 'xian',
+            '敬': 'jing', '振': 'zhen', '壮': 'zhuang', '会': 'hui', '思': 'si',
+            '群': 'qun', '豪': 'hao', '心': 'xin', '邦': 'bang', '承': 'cheng',
+            '乐': 'le', '绍': 'shao', '功': 'gong', '松': 'song', '善': 'shan',
+            '厚': 'hou', '庆': 'qing', '磊': 'lei', '民': 'min', '友': 'you',
+            '裕': 'yu', '河': 'he', '哲': 'zhe', '江': 'jiang', '超': 'chao',
+            '浩': 'hao', '亮': 'liang', '政': 'zheng', '谦': 'qian', '诚': 'cheng',
+            
+            # 地名常用字
+            '北': 'bei', '京': 'jing', '上': 'shang', '海': 'hai', '广': 'guang',
+            '州': 'zhou', '深': 'shen', '圳': 'zhen', '天': 'tian', '津': 'jin',
+            '重': 'chong', '庆': 'qing', '成': 'cheng', '都': 'du', '西': 'xi',
+            '安': 'an', '南': 'nan', '宁': 'ning', '武': 'wu', '汉': 'han',
+            '长': 'chang', '沙': 'sha', '哈': 'ha', '尔': 'er', '滨': 'bin',
+            '沈': 'shen', '阳': 'yang', '大': 'da', '连': 'lian', '青': 'qing',
+            '岛': 'dao', '济': 'ji', '郑': 'zheng', '福': 'fu', '厦': 'xia',
+            '门': 'men', '昆': 'kun', '山': 'shan', '太': 'tai', '原': 'yuan',
+            
+            # 菜品常用字
+            '宫': 'gong', '保': 'bao', '鸡': 'ji', '丁': 'ding', '麻': 'ma',
+            '婆': 'po', '豆': 'dou', '腐': 'fu', '糖': 'tang', '醋': 'cu',
+            '里': 'li', '脊': 'ji', '红': 'hong', '烧': 'shao', '肉': 'rou',
+            '鱼': 'yu', '香': 'xiang', '锅': 'guo', '菜': 'cai', '汤': 'tang',
+            '饭': 'fan', '面': 'mian', '粥': 'zhou', '蛋': 'dan', '虾': 'xia',
+            '蟹': 'xie', '牛': 'niu', '羊': 'yang', '猪': 'zhu', '排': 'pai',
+            '骨': 'gu', '翅': 'chi', '腿': 'tui', '胸': 'xiong', '肚': 'du',
+            '片': 'pian', '丝': 'si', '块': 'kuai', '条': 'tiao', '粒': 'li',
+            
+            # 其他常用字
+            '的': 'de', '是': 'shi', '在': 'zai', '了': 'le', '不': 'bu',
+            '和': 'he', '有': 'you', '人': 'ren', '这': 'zhe', '中': 'zhong',
+            '来': 'lai', '说': 'shuo', '为': 'wei', '子': 'zi', '时': 'shi',
+            '要': 'yao', '可': 'ke', '以': 'yi', '她': 'ta', '他': 'ta',
+            '我': 'wo', '你': 'ni', '们': 'men', '好': 'hao', '吗': 'ma',
+            '年': 'nian', '月': 'yue', '日': 'ri', '今': 'jin', '明': 'ming',
+            '后': 'hou', '前': 'qian', '现': 'xian', '让': 'rang', '给': 'gei',
+            '每': 'mei', '很': 'hen', '还': 'hai', '就': 'jiu', '那': 'na',
+            '从': 'cong', '能': 'neng', '两': 'liang', '开': 'kai', '关': 'guan',
+            '问': 'wen', '题': 'ti', '工': 'gong', '作': 'zuo', '学': 'xue',
+            '校': 'xiao', '家': 'jia', '公': 'gong', '司': 'si', '车': 'che',
+            '房': 'fang', '钱': 'qian', '买': 'mai', '卖': 'mai', '东': 'dong',
+            '路': 'lu', '走': 'zou', '跑': 'pao', '看': 'kan', '听': 'ting',
+            '话': 'hua', '书': 'shu', '水': 'shui', '火': 'huo', '电': 'dian',
+            '风': 'feng', '雨': 'yu', '雪': 'xue', '云': 'yun', '花': 'hua',
+            '树': 'shu', '草': 'cao', '山': 'shan', '河': 'he', '湖': 'hu',
+            '色': 'se', '白': 'bai', '黑': 'hei', '红': 'hong', '绿': 'lv',
+            '蓝': 'lan', '黄': 'huang', '紫': 'zi', '粉': 'fen', '灰': 'hui',
+        }
+        
+        result = []
+        for char in text:
+            if char in pinyin_dict:
+                result.append(pinyin_dict[char])
+            elif char.isascii():  # 保留英文字符和数字
+                result.append(char.lower())
+            else:
+                # 对于未知汉字，返回原字符或使用占位符
+                result.append(f"[{char}]")
+        
+        return ''.join(result)
+
+
+    def parse_server_return(self, response):
+        print(f"response: ---------------------------------- {response}")
+        if hasattr(response, 'body'):
+            content = json.loads(response.body.decode())
+            if content.get("success"):
+                result = content.get("data", [])
+                print(f"查询到 {len(result)} 条菜品记录")
+            else:
+                result = []
+                print(f"查询失败: {content.get('message')}")
+        return result
+
+
+    def request_url(self, url: str, param_dict: Dict, method: Optional[str] = "POST", timeout: int = 10):
+        try:
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            if method.upper() == 'GET':
+                response = requests.get(url, params=param_dict, headers=headers, timeout=10)
+            elif method.upper() == 'POST':
+                print(f"param_dict: ------------------------- {param_dict}")
+                print(f"url: ------------------------------ {url}")
+                response = requests.post(url, json=param_dict, headers=headers, timeout=timeout, verify=False)
+                print(f"response: =----================== {response}")
+                # 删除这些错误的判断！
+            else:
+                response = requests.request(method, url, json=param_dict, headers=headers, timeout=timeout)
+                
+            response.raise_for_status()
+            result = response.json()
+            
+            if isinstance(result, dict):
+                if result.get("success") and "data" in result:
+                    return result["data"]  # 对于你的API，这里会返回 []
+                elif result.get("success") and "message" in result:
+                    return result["message"]
+                elif not result.get("success"):
+                    return result.get('message', 'Unknown error')
+            return result
+            
+        except Exception as e:
+            return str(e)
+    
+
+    def request_url_(self, url: str, param_dict: Dict, method: Optional[str] = "POST"):
         # 同步版本
         try:
             headers = {
@@ -76,13 +212,17 @@ class Utils:
                 'Accept': 'application/json',
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
-            print(param_dict)
-            print(url)
             if method.upper() == 'GET':
                 response = requests.get(url, params=param_dict, headers=headers, timeout=10)
             elif method.upper() == 'POST':
                 # POST请求：参数放在请求体中
-                response = requests.post(url, json=param_dict, headers=headers, timeout=10)
+                print(f"param_dict: ------------------------- {param_dict}")
+                print(f"url: ------------------------------ {url}")
+                response = requests.post(url, json=param_dict, headers=headers, timeout=10, verify=False)
+                print(f"response: =----================== {response}")
+                if isinstance(response, bool) or isinstance(response, str) or response == "true":
+                    return True
+                return False
             else:
                 # 其他方法
                 response = requests.request(method, url, json=param_dict, headers=headers, timeout=10)

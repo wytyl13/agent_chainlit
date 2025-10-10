@@ -38,17 +38,17 @@ class ClientServiceSchema(BaseModel):
 class ClientService:
     args_schema: Type[BaseModel] = ClientServiceSchema
     end_flag: int = 1
-    
-    
+
+
     @overload
     def __init__(
         self, 
     ):
         ...
 
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-            
 
 
     def format_table_data_markdown(self, type, key_mapping, data_list):
@@ -188,9 +188,8 @@ class ClientService:
             ]
             
             data_list = utils.convert_to_chinese_fields(data_list=data_list, key_mapping=key_mapping)
-            
 
-            
+
             food_data_list = [
                 {
                     "dish_id": "001",

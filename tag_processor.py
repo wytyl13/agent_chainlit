@@ -34,7 +34,7 @@ class TagProcessor:
         self.tag_patterns = TAG_PATTERNS
 
 
-    async def process_data_frame_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    async def process_data_frame_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """处理data_frame标签"""
         try:
             message_content = attributes.get('content') if attributes else '📊 **数据表格**'
@@ -51,8 +51,8 @@ class TagProcessor:
             await cl.Message(content=f"❌ 数据表格处理失败: {str(e)}").send()
             return False
 
-
-    async def process_card_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    
+    async def process_real_time_vital_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """处理card标签"""
         try:
             card_name = attributes.get('name', 'DefaultCard') if attributes else 'DefaultCard'
@@ -62,9 +62,16 @@ class TagProcessor:
             print(f"card_name: ---------------------------- {card_name}")
             print(f"data_list: ---------------------------- {data_list}")
             # # 创建自定义元素
+            if isinstance(data_list, list):
+                props = {"data": data_list}
+            elif isinstance(data_list, dict):
+                props = data_list
+                # result = utils.request_url(**props)
+                # result = [] if not isinstance(result, list) else result
+                # props = {"data": result, "apiUrl": props["url"]}
             menu_element = cl.CustomElement(
                 name=card_name,
-                props={"data": data_list}
+                props=props
             )
             
             await cl.Message(
@@ -79,7 +86,76 @@ class TagProcessor:
             return False
 
 
-    async def process_confirm_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+
+    async def process_card_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
+        """处理card标签"""
+        try:
+            card_name = attributes.get('name', 'DefaultCard') if attributes else 'DefaultCard'
+            data_list = json.loads(content)
+            message_content = attributes.get('content', '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作') if attributes else '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作'
+            
+            print(f"card_name: ---------------------------- {card_name}")
+            print(f"data_list: ---------------------------- {data_list}")
+            # # 创建自定义元素
+            if isinstance(data_list, list):
+                props = {"data": data_list}
+            elif isinstance(data_list, dict):
+                props = data_list
+                # result = utils.request_url(**props)
+                # result = [] if not isinstance(result, list) else result
+                # props = {"data": result, "apiUrl": props["url"]}
+            menu_element = cl.CustomElement(
+                name=card_name,
+                props=props
+            )
+    
+            await cl.Message(
+                content=message_content,
+                elements=[menu_element]
+            ).send()
+            
+            print("✅ Card处理成功")
+            return True
+        except Exception as e:
+            print(f"❌ Card处理失败: {e}")
+            return False
+        
+        
+    async def process_suggestion_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
+        """处理card标签"""
+        try:
+            card_name = attributes.get('name', 'DefaultCard') if attributes else 'DefaultCard'
+            data_list = json.loads(content)
+            message_content = attributes.get('content', '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作') if attributes else '🍽️ **今日推荐菜单** - 点击卡片上的按钮进行操作'
+            
+            print(f"card_name: ---------------------------- {card_name}")
+            print(f"data_list: ---------------------------- {data_list}")
+            # # 创建自定义元素
+            if isinstance(data_list, list):
+                props = {"data": data_list}
+            elif isinstance(data_list, dict):
+                props = data_list
+                # result = utils.request_url(**props)
+                # result = [] if not isinstance(result, list) else result
+                # props = {"data": result, "apiUrl": props["url"]}
+            menu_element = cl.CustomElement(
+                name=card_name,
+                props=props
+            )
+    
+            await cl.Message(
+                content="",
+                elements=[menu_element]
+            ).send()
+            
+            print("✅ Suggestions处理成功")
+            return True
+        except Exception as e:
+            print(f"❌ Suggestions处理失败: {e}")
+            return False
+
+
+    async def process_confirm_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """处理confirm标签"""
         try:
             actions = [
@@ -87,30 +163,34 @@ class TagProcessor:
                 cl.Action(name="cancel", payload={"value": "取消"}, label="🔴 取消操作")
             ]
             message_content = attributes.get('content') if attributes else ""
-            content = message_content if content == "" or content is None else content
-            
+            message_content = message_content if message_content else "确认！"
             res = await cl.AskActionMessage(
                 content=f"⚠️ **操作确认**\n\n{content}",
                 actions=actions
             ).send()
-            print("whoami-----------------------------------------------------------------------")
-            print("whoami-----------------------------------------------------------------------")
+            chat_history.append({"role": "assistant", "content": content})
+            
             if res and res.get("payload").get("value") == "确认":
                 # 调用确认接口
                 await cl.Message(
-                    content="确认!",
+                    content=message_content,
                 ).send()
                 
                 param_dict = {
-                    "question": "确认!",
-                    "messages": chat_history
+                    "question": message_content,
+                    "messages": chat_history,
+                    "is_ensure": 1
                 }
+                print(f"attributes: --------------------------------- {attributes}")
+                print(f"message_content: --------------------------------- {message_content}")
+                print(f"content: --------------------------------- {content}")
                 print(f"param_dict: --------------------------------- {param_dict}")
                 print(f"function_call_url: --------------------------------- {function_call_url}")
                 # function_call
                 result = utils.request_url(
                     url=function_call_url,
-                    param_dict=param_dict
+                    param_dict=param_dict,
+                    service_name=service_name
                 )
                 print("================================")
                 print(result)
@@ -122,7 +202,7 @@ class TagProcessor:
                 except Exception as e:
                     print("接受到字符串格式返回数据")
                     segments = utils.parse_content(content=result)
-                result_seg = await self.process_segments(segments=segments, chat_history=chat_history, function_call_url=function_call_url)
+                result_seg = await self.process_segments(segments=segments, chat_history=chat_history, function_call_url=function_call_url, service_name=service_name)
                 
             print("✅ Confirm处理成功")
             return True
@@ -132,7 +212,7 @@ class TagProcessor:
             return False
 
 
-    async def process_zhuyunying_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    async def process_zhuyunying_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """处理zhuyunying标签"""
         try:
             # 数据
@@ -180,7 +260,7 @@ class TagProcessor:
             return False
 
 
-    async def process_preview_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    async def process_preview_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         try:
             message_content = attributes.get('content') if attributes else ''
             name = attributes.get('name') if 'name' in attributes else 'WebPreviewCard'
@@ -209,7 +289,7 @@ class TagProcessor:
             return False
 
 
-    async def process_image_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    async def process_image_tag(self, content, attributes=None, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """处理image标签"""
         try:
             image_path = content.strip()
@@ -245,7 +325,7 @@ class TagProcessor:
             return False
 
 
-    async def process_tag(self, tag_name, content, attributes, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    async def process_tag(self, tag_name, content, attributes, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """根据标签名称处理对应的标签"""
         handler_map = {
             'data_frame': self.process_data_frame_tag,
@@ -253,18 +333,22 @@ class TagProcessor:
             'confirm': self.process_confirm_tag,
             'zhuyunying': self.process_zhuyunying_tag,
             'image': self.process_image_tag,
-            'preview': self.process_preview_tag
+            'preview': self.process_preview_tag,
+            'suggestions': self.process_suggestion_tag,
+            'real_time_vital': self.process_real_time_vital_tag,
         }
-        
+        print(f"attributes: ------------------------------------------------------------- {attributes}")
+        print(f"attributes: ------------------------------------------------------------- {attributes}")
+        print(f"attributes: ------------------------------------------------------------- {attributes}")
         handler = handler_map.get(tag_name)
         if handler:
-            return await handler(content, attributes, chat_history, function_call_url)
+            return await handler(content, attributes, chat_history, function_call_url, service_name)
         else:
             print(f"❌ 未知标签类型: {tag_name}")
             return False
 
 
-    async def process_segments(self, segments, chat_history: Optional[List] = None, function_call_url: Optional[str] = None):
+    async def process_segments(self, segments, chat_history: Optional[List] = None, function_call_url: Optional[str] = None, service_name: Optional[str] = None):
         """按顺序处理所有分段"""
         text_msg = None  # 用于累积文本消息
         print("============================")
@@ -292,8 +376,9 @@ class TagProcessor:
                     segment['tag_name'], 
                     segment['content'], 
                     segment.get('attributes'),  # 新增传递attributes
-                    chat_history,
-                    function_call_url
+                    chat_history=chat_history,
+                    function_call_url=function_call_url,
+                    service_name=service_name
                 )
                 if not success:
                     import traceback

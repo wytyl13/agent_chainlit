@@ -42,21 +42,22 @@ docker pull nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 docker network create app-network
 ```
 
-#### 2. 启动Agent容器
+#### 2. 启动agent_chainlit容器
 
 ```bash
 docker run -d \
-  --name agent \
+  --name community_agent \
   --gpus all \
   --cpus="$(nproc)" \
   --memory="$(free -b | awk '/^Mem:/{printf "%.0f", $2*0.4}')" \
   --shm-size=16g \
+  -p 9000-9100:9000-9100 \
   --restart unless-stopped \
+  -v /home/weiyutao/cuda-data-1:/data \
+  -v /home/weiyutao/cuda-workspace-1:/workspace \
   -e NVIDIA_VISIBLE_DEVICES=all \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
   --privileged \
-  -p 8891:8891 \
-  -p 5004:5004 \
   -it \
   nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04 \
   /bin/bash
@@ -236,27 +237,71 @@ query_num: # 检索条目数
 
 
 ## 📚 API文档
-https://ai.shunxikj.com:8890/chat/function_call/start   POST
+### 📚 用户订餐接口
+#### 场景1：
+https://ai.shunxikj.com:8890/chat/function_call/food_user_server   POST
 JSON请求体:
 {
-   "question": "确认",
+   "question": "查看菜品信息",
+   "messages": []
+}
+
+RESPONSE:  标签card使用卡片渲染  
+{
+	"success": true,
+	"data": "[\n  {\n    \"type\": \"tag\",\n    \"tag_name\": \"card\",\n    \"content\": \"[\\n  {\\n    \\\"dish_name\\\": \\\"宫保鸡丁\\\",\\n    \\\"category\\\": \\\"川菜\\\",\\n    \\\"ingredients\\\": \\\"鸡肉、花生、青椒、红椒\\\",\\n    \\\"rating\\\": 4.8,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/宫保鸡丁.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:49:28.357785\\\",\\n    \\\"id\\\": 4,\\n    \\\"price\\\": 28.0,\\n    \\\"nutrition\\\": \\\"高蛋白、维生素C\\\",\\n    \\\"description\\\": \\\"经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:49:28.357782\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"红烧狮子头\\\",\\n    \\\"category\\\": \\\"淮扬菜\\\",\\n    \\\"ingredients\\\": \\\"猪肉、马蹄、冬菇、青菜\\\",\\n    \\\"rating\\\": 4.6,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/红烧狮子头.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:50:06.813752\\\",\\n    \\\"id\\\": 5,\\n    \\\"price\\\": 35.0,\\n    \\\"nutrition\\\": \\\"高蛋白、膳食纤维\\\",\\n    \\\"description\\\": \\\"淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:50:06.813751\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"清蒸鲈鱼\\\",\\n    \\\"category\\\": \\\"粤菜\\\",\\n    \\\"ingredients\\\": \\\"新鲜鲈鱼、蒸鱼豉油、葱丝\\\",\\n    \\\"rating\\\": 4.9,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/清蒸鲈鱼.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:50:43.587513\\\",\\n    \\\"id\\\": 6,\\n    \\\"price\\\": 42.0,\\n    \\\"nutrition\\\": \\\"高蛋白、低脂肪、DHA\\\",\\n    \\\"description\\\": \\\"粤式经典，鱼肉鲜嫩，保持原汁原味\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:50:43.587511\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"麻婆豆腐\\\",\\n    \\\"category\\\": \\\"川菜\\\",\\n    \\\"ingredients\\\": \\\"嫩豆腐、牛肉末、豆瓣酱、花椒\\\",\\n    \\\"rating\\\": 4.7,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/麻婆豆腐.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:51:15.073792\\\",\\n    \\\"id\\\": 7,\\n    \\\"price\\\": 18.0,\\n    \\\"nutrition\\\": \\\"植物蛋白、钙质、维生素\\\",\\n    \\\"description\\\": \\\"川菜经典，麻辣鲜香，豆腐嫩滑入味\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:51:15.073791\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"糖醋排骨\\\",\\n    \\\"category\\\": \\\"家常菜\\\",\\n    \\\"ingredients\\\": \\\"猪排骨、番茄酱、糖、醋、生抽\\\",\\n    \\\"rating\\\": 4.8,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/糖醋排骨.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:51:51.148818\\\",\\n    \\\"id\\\": 8,\\n    \\\"price\\\": 32.0,\\n    \\\"nutrition\\\": \\\"高蛋白、胶原蛋白、钙质\\\",\\n    \\\"description\\\": \\\"酸甜可口，色泽红亮，老少皆宜的经典菜品\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:51:51.148816\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"西红柿鸡蛋\\\",\\n    \\\"category\\\": \\\"家常菜\\\",\\n    \\\"ingredients\\\": \\\"新鲜西红柿、鸡蛋、糖、盐\\\",\\n    \\\"rating\\\": 0.0,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/西红柿鸡蛋.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T23:14:57.763230\\\",\\n    \\\"id\\\": 10,\\n    \\\"price\\\": 15.0,\\n    \\\"nutrition\\\": \\\"优质蛋白、番茄红素、维生素\\\",\\n    \\\"description\\\": \\\"国民家常菜，酸甜开胃，营养均衡\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T23:14:57.767162\\\"\\n  }\\n]\",\n    \"full_match\": \"<card name=\\\"MenuCards\\\" content=\\\"为您查到6条菜品信息：宫保鸡丁、红烧狮子头、清蒸鲈鱼、麻婆豆腐、糖醋排骨、西红柿鸡蛋，菜品详细信息如下：\\\">[\\n  {\\n    \\\"dish_name\\\": \\\"宫保鸡丁\\\",\\n    \\\"category\\\": \\\"川菜\\\",\\n    \\\"ingredients\\\": \\\"鸡肉、花生、青椒、红椒\\\",\\n    \\\"rating\\\": 4.8,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/宫保鸡丁.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:49:28.357785\\\",\\n    \\\"id\\\": 4,\\n    \\\"price\\\": 28.0,\\n    \\\"nutrition\\\": \\\"高蛋白、维生素C\\\",\\n    \\\"description\\\": \\\"经典川菜，麻辣鲜香，鸡肉嫩滑配花生脆香\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:49:28.357782\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"红烧狮子头\\\",\\n    \\\"category\\\": \\\"淮扬菜\\\",\\n    \\\"ingredients\\\": \\\"猪肉、马蹄、冬菇、青菜\\\",\\n    \\\"rating\\\": 4.6,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/红烧狮子头.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:50:06.813752\\\",\\n    \\\"id\\\": 5,\\n    \\\"price\\\": 35.0,\\n    \\\"nutrition\\\": \\\"高蛋白、膳食纤维\\\",\\n    \\\"description\\\": \\\"淮扬名菜，肉质鲜嫩，汤汁醇厚，营养丰富\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:50:06.813751\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"清蒸鲈鱼\\\",\\n    \\\"category\\\": \\\"粤菜\\\",\\n    \\\"ingredients\\\": \\\"新鲜鲈鱼、蒸鱼豉油、葱丝\\\",\\n    \\\"rating\\\": 4.9,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/清蒸鲈鱼.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:50:43.587513\\\",\\n    \\\"id\\\": 6,\\n    \\\"price\\\": 42.0,\\n    \\\"nutrition\\\": \\\"高蛋白、低脂肪、DHA\\\",\\n    \\\"description\\\": \\\"粤式经典，鱼肉鲜嫩，保持原汁原味\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:50:43.587511\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"麻婆豆腐\\\",\\n    \\\"category\\\": \\\"川菜\\\",\\n    \\\"ingredients\\\": \\\"嫩豆腐、牛肉末、豆瓣酱、花椒\\\",\\n    \\\"rating\\\": 4.7,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/麻婆豆腐.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:51:15.073792\\\",\\n    \\\"id\\\": 7,\\n    \\\"price\\\": 18.0,\\n    \\\"nutrition\\\": \\\"植物蛋白、钙质、维生素\\\",\\n    \\\"description\\\": \\\"川菜经典，麻辣鲜香，豆腐嫩滑入味\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:51:15.073791\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"糖醋排骨\\\",\\n    \\\"category\\\": \\\"家常菜\\\",\\n    \\\"ingredients\\\": \\\"猪排骨、番茄酱、糖、醋、生抽\\\",\\n    \\\"rating\\\": 4.8,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/糖醋排骨.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T21:51:51.148818\\\",\\n    \\\"id\\\": 8,\\n    \\\"price\\\": 32.0,\\n    \\\"nutrition\\\": \\\"高蛋白、胶原蛋白、钙质\\\",\\n    \\\"description\\\": \\\"酸甜可口，色泽红亮，老少皆宜的经典菜品\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T21:51:51.148816\\\"\\n  },\\n  {\\n    \\\"dish_name\\\": \\\"西红柿鸡蛋\\\",\\n    \\\"category\\\": \\\"家常菜\\\",\\n    \\\"ingredients\\\": \\\"新鲜西红柿、鸡蛋、糖、盐\\\",\\n    \\\"rating\\\": 0.0,\\n    \\\"url\\\": \\\"https://ai.shunxikj.com:8890/api/files/download/西红柿鸡蛋.jpg\\\",\\n    \\\"update_time\\\": \\\"2025-09-15T23:14:57.763230\\\",\\n    \\\"id\\\": 10,\\n    \\\"price\\\": 15.0,\\n    \\\"nutrition\\\": \\\"优质蛋白、番茄红素、维生素\\\",\\n    \\\"description\\\": \\\"国民家常菜，酸甜开胃，营养均衡\\\",\\n    \\\"create_time\\\": \\\"2025-09-15T23:14:57.767162\\\"\\n  }\\n]</card>\",\n    \"start\": 17,\n    \"end\": 2412,\n    \"attributes\": {\n      \"name\": \"MenuCards\",\n      \"content\": \"为您查到6条菜品信息：宫保鸡丁、红烧狮子头、清蒸鲈鱼、麻婆豆腐、糖醋排骨、西红柿鸡蛋，菜品详细信息如下：\"\n    }\n  }\n]",
+	"timestamp": "2025-09-16T01:15:46.516086"
+}
+
+
+
+#### 场景2：  请求或者点击卡片指定菜品进行点餐操作
+```
+https://ai.shunxikj.com:8890/chat/function_call/food_user_server   POST
+JSON请求体:
+{
+   "question": "预定1份宫保鸡丁",
    "messages": [
-      {"role": "user", "content": "我要新增一个角色"},
-      {"role": "assistant", "content": "请提供具体的角色名称！"},
-      {"role": "user", "content": "产品经理"},
-      {"role": "assistant", "content": "请提供具体的权限！您可以从如下权限中选择：['服务项目管理', '商品分类管理', '设备类别管理']"},
-      {"role": "user", "content": "服务项目和商品分类"},
-      {"role": "assistant", "content": "<text_value>好的，收到新增：产品经理 * ['服务项目管理', '商品分类管理']。</text_value><confirm>请确认是否操作新增？</confirm>"}
+        {"role": "user", "content": "查看菜品信息"},
+        {"role": "assistant", "content": "为您查到6条菜品信息：宫保鸡丁、红烧狮子头、清蒸鲈鱼、麻婆豆腐、糖醋排骨、西红柿鸡蛋，菜品详细信息如下："}
    ]
 }
 
-RESPONSE:
+
+RESPONSE: 进行订单确认操作，自动打印订单小票
 {
 	"success": true,
-	"data": "好的，已为您新增角色产品经理，新增后的权限如下： ['服务项目管理', '商品分类管理']",
-	"timestamp": "2025-09-13T09:25:28.136573"
+	"data": "[\n  {\n    \"type\": \"text\",\n    \"content\": \"🍽️ 助餐订单确认\\n📋 订单详情\\n**菜品名称：** 宫保鸡丁\\n**菜品编号：** gongbaojiding\\n**份数：** 1份\\n**单价：** 25.0元/份\\n\\n**总金额：** 25.0元\\n👤 客户信息\\n**客户姓名：** 张秀英\\n**送餐地址：** 幸福小区3栋201室\\n**联系电话：** 138****5678\\n🕐 用餐安排\\n**用餐时间：** 今日午餐\\n**特殊要求：** 少放盐，口味清淡\",\n    \"start\": 0,\n    \"end\": 206\n  },\n  {\n    \"type\": \"tag\",\n    \"tag_name\": \"confirm\",\n    \"content\": \"请确认您的订单？\",\n    \"full_match\": \"<confirm content=\\\"确认点餐：宫保鸡丁*1\\\">请确认您的订单？</confirm>\",\n    \"start\": 206,\n    \"end\": 255,\n    \"attributes\": {\n      \"content\": \"确认点餐：宫保鸡丁*1\"\n    }\n  }\n]",
+	"timestamp": "2025-09-16T01:17:03.548464"
 }
 ```
+
+
+#### 场景3：  用户点击确认以后直接发送请求
+```
+https://ai.shunxikj.com:8890/chat/function_call/food_user_server   POST
+用户点击确认按钮以后，前端发送指定字段的内容作为question="确认点餐：宫保鸡丁*1" (取自场景2返回值中的attributes字段中的content字段)
+JSON请求体:
+{
+   "question": "预定1份宫保鸡丁",
+   "messages": [
+        {"role": "user", "content": "查看菜品信息"},
+        {"role": "assistant", "content": "为您查到6条菜品信息：宫保鸡丁、红烧狮子头、清蒸鲈鱼、麻婆豆腐、糖醋排骨、西红柿鸡蛋，菜品详细信息如下："},
+        {"role": "user", "content": "预定1份宫保鸡丁"},
+        {"role": "user", "assistant": "请确认您的订单？"}, # 取自场景2返回值的tag标签类型为confirm的content字段内容
+        {"role": "assistant", "content": "预定1份宫保鸡丁"},
+   ],
+   "is_ensure": 1 # 注意不要忘记这个参数，固定传参为1，仅在这个场景中传递
+}
+```
+
+### 📚 食堂菜单管理员接口
+#### 场景1：
+
+
+
+
+
 
 ## 🔧 开发指南
 
