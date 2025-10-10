@@ -263,7 +263,7 @@ export default function CompactMedicalDashboard() {
     }
   }, []);
 
-  // WebSocket连接函数 - 修复版，防止多重连接，添加心跳机制
+  // WebSocket连接函数 - 修复版，防止多重连接
   const connectWebSocket = useCallback(async () => {
     // 使用连接锁防止重复调用
     if (connectionLockRef.current) {
@@ -316,28 +316,12 @@ export default function CompactMedicalDashboard() {
         }
       }, 10000); // 10秒超时
 
-      // ⭐ 心跳定时器引用
-      let heartbeatInterval = null;
-
       ws.onopen = () => {
         clearTimeout(connectionTimeout);
         console.log('WebSocket连接已建立');
         setWsStatus('connected');
         setReconnectAttempts(0);
         wsRef.current = ws;
-        
-        // ⭐ 启动心跳机制 - 每60秒发送一次心跳
-        heartbeatInterval = setInterval(() => {
-          if (ws.readyState === WebSocket.OPEN) {
-            const heartbeat = {
-              type: "heartbeat",
-              client_id: `dashboard_${Date.now()}`,
-              timestamp: Date.now()
-            };
-            console.log('发送心跳');
-            ws.send(JSON.stringify(heartbeat));
-          }
-        }, 60000); // 60秒发送一次心跳
       };
 
       ws.onmessage = async (event) => {
@@ -359,8 +343,6 @@ export default function CompactMedicalDashboard() {
             console.log(`订阅成功，设备ID: ${data.device_id}`);
           } else if (data.type === 'realtime_data') {
             processWebSocketData(data);
-          } else if (data.type === 'heartbeat_response' || data.type === 'pong') {
-            console.log('收到心跳响应');
           }
         } catch (error) {
           console.error('解析WebSocket消息失败:', error);
@@ -368,13 +350,6 @@ export default function CompactMedicalDashboard() {
       };
 
       ws.onerror = (error) => {
-        // ⭐ 清理心跳定时器
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-          console.log('心跳定时器已清理（错误）');
-        }
-        
         clearTimeout(connectionTimeout);
         console.error('WebSocket错误:', error);
         setWsError('连接错误');
@@ -382,13 +357,6 @@ export default function CompactMedicalDashboard() {
       };
 
       ws.onclose = (event) => {
-        // ⭐ 清理心跳定时器
-        if (heartbeatInterval) {
-          clearInterval(heartbeatInterval);
-          heartbeatInterval = null;
-          console.log('心跳定时器已清理（关闭）');
-        }
-        
         clearTimeout(connectionTimeout);
         console.log('WebSocket连接已关闭:', event.code, event.reason);
         setWsStatus('disconnected');

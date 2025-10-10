@@ -91,8 +91,8 @@ class ServiceInfoServer:
                         )
                 else:
                     return JSONResponse(
-                        status_code=400,
-                        content={"success": False, "message": "参数传递错误！", "timestamp": datetime.now().isoformat()}
+                        status_code=200,
+                        content={"success": True, "data": service_config_list_without_tools, "timestamp": datetime.now().isoformat()}
                     )
             condition["role_code"] = role_code
             try:
