@@ -58,10 +58,12 @@ from tools.user_server.product_order import ProductOrder
 from tools.user_server.weixiu import WeiXiu
 from tools.user_server.graph_server import GraphServer
 from tools.user_server.merchant_management_tool import MerchantManagementService
+
 from tools.real_time_vital_analyze.real_time_vital_analyze_tool import RealTimeVitalAnalyze
 from tools.real_time_vital_analyze.welcome import WelcomeTool
 from tools.real_time_vital_analyze.health_report_tool import HealthReportTool
 
+from tools.elder_school.teacher_service import TeacherTool
 
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent.parent
@@ -107,6 +109,10 @@ real_time_vital_analyze_service = [real_time_vital_analyze, health_report_tool]
 # 5. merchant_service_system
 merchant_management = MerchantManagementService()
 merchant_service_system = [merchant_management]
+
+# 6. eldly_school_system
+teacher_management_tool = TeacherTool()
+eldly_school_system = [teacher_management_tool]
 
 
 
@@ -167,8 +173,17 @@ service_config_list = [
         "action": "switch_to_traditional_medical_service",
         "identifier": "traditional_medical_service",
         "tools": merchant_service_system
+    },
+    {
+        "service_id": "eldly_school_service",
+        "service_name": "老年大学",
+        "emoji": "🍽️",
+        "action": "switch_to_eldly_school_service",
+        "identifier": "eldly_school_service",
+        "tools": eldly_school_system
     }
 ]
+
 
 service_config = {item['service_id']: {'service_name': item['service_name'], 'emoji': item['emoji'], 'action': item['action'], 'identifier': f":{item['identifier']}", 'tools': item['tools']} for item in service_config_list}
 
@@ -387,6 +402,7 @@ class FunctionCallServer:
                 ):
                     chunks.append(chunk)
             else:
+                print(service_config[service_name]["tools"])
                 async for chunk in self.function_call_start.execute(
                     question=question,
                     messages=messages,

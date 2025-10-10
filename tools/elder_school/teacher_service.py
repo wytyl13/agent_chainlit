@@ -42,7 +42,7 @@ class TeacherServiceSchema(BaseModel):
 
 
 @tool
-class TeacherService:
+class TeacherTool:
     args_schema: Type[BaseModel] = TeacherServiceSchema
     end_flag: int = 1
 

@@ -72,7 +72,8 @@ audio_buffer = None
 
 SAVE_DIR = str(ROOT_DIRECTORY / "upload_dir")
 
-SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={"username": "shunxikeji"})
+# SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={"username": "shunxikeji"})
+SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={})
 print(SERVICE_INFO_JSON)
 SERVICE_INFO_DICT = {item['service_id']: {'service_name': item['service_name'], 'emoji': item['emoji'], 'action': item['action'], 'identifier': f":{item['identifier']}"} for item in SERVICE_INFO_JSON}
 
@@ -184,7 +185,7 @@ async def set_starters():
         ),
         cl.Starter(
             label="🍽️ 老年大学",
-            message="欢迎进入老年大学:traditional_medical_service",
+            message="欢迎进入老年大学:eldly_school_service",
         )
     ]
 
@@ -285,6 +286,9 @@ async def main(message: cl.Message):
         message: 用户的消息，包含文本内容和可能的附件
     """
     current_service = cl.user_session.get("selected_service", "welcome_system")
+    print("!!!!!!!!!!!!!!!!!!!!!!!")
+    print(current_service)
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     
     user = cl.user_session.get("user")
     community = user.metadata.get("community") if user.metadata else None
@@ -427,7 +431,7 @@ async def main(message: cl.Message):
                 param_dict = {
                     "question": user_text,
                     "messages": chat_history,
-                    "service_name": current_service
+                    "service_name": cl.user_session.get("selected_service", "welcome_system")
                 }
                 print(f"param_dict: ----------------------- {param_dict}")
                 result = utils.request_url(
@@ -435,7 +439,7 @@ async def main(message: cl.Message):
                     param_dict=param_dict
                 )
                 print("111================================111")
-                print(param_dict['messages'])
+                print(param_dict)
                 print("111================================111")
                 print("================================")
                 print(f"result: ------------------------------------{result}")
@@ -497,6 +501,7 @@ async def start():
     # 获取当前用户
     user = cl.user_session.get("user")
     url = f"{SQL_API_PREFIX}/api/community_real_time_data"
+    url += "?username=" + user.identifier
     response = requests.get(url, timeout=10)
     tonggao_results = []
     if response.status_code == 200:
@@ -504,7 +509,7 @@ async def start():
         if result.get("success") and result.get("data"):
             tonggao_results = result.get("data", [])
     tonggao = tonggao_results[-1]["content"] if tonggao_results else "暂无！"
-    cl.user_session.set("selected_service", "welcome_system")
+    # cl.user_session.set("selected_service", "welcome_system")
     
     # if user:
     #     try:
