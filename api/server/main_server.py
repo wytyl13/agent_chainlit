@@ -19,6 +19,7 @@ from api.server.real_time_vital_analyze.sleep_statistics_server import SleepStat
 from api.server.real_time_vital_analyze.device_info_server import DeviceInfoServer
 from api.server.base.service_info_server import ServiceInfoServer
 from api.server.base.role_info_server import RoleInfoServer
+from api.server.elder_school.teacher_info_server import TeacherInfoServer
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 SQL_CONFIG_PATH = str(ROOT_DIRECTORY / "config" / "yaml" / "sql_config.yaml")
@@ -58,6 +59,7 @@ class AeroSenseMainServer:
         self.device_info_server = DeviceInfoServer(self.sql_config_path)
         self.service_info_server = ServiceInfoServer()
         self.role_info_server = RoleInfoServer(self.sql_config_path)
+        self.teacher_info = TeacherInfoServer(self.sql_config_path)
         # 设置应用
         self._setup_middleware()
         self._setup_base_routes()
@@ -144,6 +146,9 @@ class AeroSenseMainServer:
 
         # 注册睡眠数据统计服务
         self.role_info_server.register_routes(self.app)
+
+        # 注册教师信息管理服务
+        self.teacher_info.register_routes(self.app)
 
 
     def run(

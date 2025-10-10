@@ -73,6 +73,7 @@ audio_buffer = None
 SAVE_DIR = str(ROOT_DIRECTORY / "upload_dir")
 
 SERVICE_INFO_JSON = utils.request_url(url=f"{SQL_API_PREFIX}/api/service_info", param_dict={"username": "shunxikeji"})
+print(SERVICE_INFO_JSON)
 SERVICE_INFO_DICT = {item['service_id']: {'service_name': item['service_name'], 'emoji': item['emoji'], 'action': item['action'], 'identifier': f":{item['identifier']}"} for item in SERVICE_INFO_JSON}
 
 
@@ -149,6 +150,12 @@ async def switch_to_merchant_service_system(action):
     await cl.Message(content="✅ 已切换中医问诊").send()
 
 
+@cl.action_callback("switch_to_eldly_school_service")
+async def switch_to_merchant_service_system(action):
+    cl.user_session.set("selected_service", "eldly_school_service")
+    await cl.Message(content="✅ 已切换老年大学").send()
+
+
 @cl.set_starters
 async def set_starters():
     # 返回通用的预设问题（所有用户都能看到）
@@ -174,6 +181,10 @@ async def set_starters():
         cl.Starter(
             label="🍽️ 中医问诊",
             message="欢迎进入中医问诊:traditional_medical_service",
+        ),
+        cl.Starter(
+            label="🍽️ 老年大学",
+            message="欢迎进入老年大学:traditional_medical_service",
         )
     ]
 
