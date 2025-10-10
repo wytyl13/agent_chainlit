@@ -10,7 +10,7 @@
 """
 function_call_server: 工具调用服务
 """
-
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from pathlib import Path
@@ -226,6 +226,31 @@ class FunctionCallServer:
         else:
             raise ValueError(f"messages must be either JSON string or list, got {type(messages)}")
 
+    def _setup_middleware(self,app: FastAPI):
+        """设置中间件"""
+        app.add_middleware(
+            CORSMiddleware,
+            # allow_origins=[
+            #     "https://localhost:8000",
+            #     "https://localhost:8002",
+            #     "https://localhost:8890",  
+            #     "https://127.0.0.1:8000", 
+            #     "https://127.0.0.1:8002",
+            #     "https://127.0.0.1:8890",
+            #     "https://1.71.15.121:8000",
+            #     "https://1.71.15.121:8002",
+            #     "https://1.71.15.121:8890",
+            #     "https://ai.shunxikj.com:8000", 
+            #     "https://ai.shunxikj.com:8002",
+            #     "https://ai.shunxikj.com:8890", 
+            # ],
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_credentials=True,
+            # allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+        )
+    
 
     def register_routes(self, app: FastAPI):
         """注册路由"""
@@ -538,8 +563,12 @@ def create_app():
         enhance_retrieval=enhance_qwen_admin
     )
     function_call_server.register_routes(app)
+    function_call_server._setup_middleware(app)
     return app
 
+
+
+    
 
 
 def parse_arguments():
