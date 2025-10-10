@@ -91,16 +91,9 @@ class ServiceInfoServer:
                         )
                 else:
                     return JSONResponse(
-<<<<<<< HEAD
-                        status_code=400,
-                        content={"success": False, "message": "参数传递错误！", "timestamp": datetime.now().isoformat()}
-                    )
-            
-=======
                         status_code=200,
                         content={"success": True, "data": service_config_list_without_tools, "timestamp": datetime.now().isoformat()}
                     )
->>>>>>> weiyutao
             condition["role_code"] = role_code
             try:
                 role_info_sql_provider = SqlProvider(model=RoleInfo, sql_config_path=SQL_CONFIG_PATH)
